@@ -43,9 +43,9 @@ class ScanImage(Exception):
     type_cis = "cis"
     severity_high = "high"
 
-    def __init__(self, user, password, repo, tag, client, cloud):
-        self.user = user
-        self.password = password
+    def __init__(self, client_id, client_secret, repo, tag, client, cloud):
+        self.client_id = client_id
+        self.client_secret = client_secret
         self.repo = repo
         self.tag = tag
         self.client = client
@@ -64,7 +64,7 @@ class ScanImage(Exception):
     # Step 2: login using the credentials supplied
     def docker_login(self):
         print("performing docker login")
-        self.client.login(username=self.user, password=self.password, registry=self.server_domain)
+        self.client.login(username=self.client_id, password=self.client_secret, registry=self.server_domain)
 
     # Step 3: perform docker push using the repo and tag supplied
     def docker_push(self):
@@ -80,8 +80,8 @@ class ScanImage(Exception):
         print("Getting API Token")
         post_url = self.auth_url
         payload = {
-            "client_id": self.user,
-            "client_secret": self.password
+            "client_id": self.client_id,
+            "client_secret": self.client_secret
         }
         headers = {
             "Content-Type": "application/x-www-form-urlencoded"
@@ -207,22 +207,22 @@ class BearerAuth(requests.auth.AuthBase):
 def parse_args():
     parser = argparse.ArgumentParser(description='Crowdstrike scan your docker image.')
     required = parser.add_argument_group('required arguments')
-    required.add_argument('--user', action="store", dest="user", help="docker user", required=True)
+    required.add_argument('--clientid, action="store", dest="client_id", help="Falcon OAuth2 API ClientID", required=True)
     required.add_argument('--repo', action="store", dest="repo", help="docker image repository", required=True)
     required.add_argument('--tag', action="store", dest="tag", help="docker image tag", required=True)
     required.add_argument('--cloud', action="store", dest="cloud", required=True,
                             choices=['us-1', 'us-2', 'eu-1'], 
                             help="CS cloud name")
     args = parser.parse_args()
-    return args.__getattribute__("user"), args.__getattribute__("repo"), args.__getattribute__("tag"), args.__getattribute__("cloud")
+    return args.__getattribute__("client_id"), args.__getattribute__("repo"), args.__getattribute__("tag"), args.__getattribute__("cloud")
 
 def main():
     try: 
-        user, repo, tag, cloud = parse_args()
+        client_id, repo, tag, cloud = parse_args()
         client = docker.from_env()
-        print("please enter password to login")
-        password = getpass.getpass()
-        scan_image = ScanImage(user, password, repo, tag, client, cloud)
+        print("Please enter your Falcon OAuth2 API Secret")
+        client_secret= getpass.getpass()
+        scan_image = ScanImage(client_id, client_secret, repo, tag, client, cloud)
         scan_image.docker_tag()
         scan_image.docker_login()
         scan_image.docker_push()
