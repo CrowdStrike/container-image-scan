@@ -1,0 +1,66 @@
+ImageScan
+
+This script simulates entire image scan
+1. tags your image using, Docker tag
+2. logs into docker using, Docker login
+3. pushes the image using, Docker push
+4. starts Image Scan
+5. waits to get back Scan Report
+6. parses Scan Report
+7. returns error codes (more details below) 
+8. logs to stdout/stderr
+
+Steps
+
+Prerequisites
+================================================================
+sudo easy_install pip
+pip install docker
+pip install requests
+
+Usage
+================================================================
+python cs_scanimage.py --help
+usage: cs_scanimage.py [-h] --user USER --repo REPO --tag TAG
+                       --cloud {us-1,us-2,eu-1}
+
+Crowdstrike scan your docker image.
+
+optional arguments:
+  -h, --help            show this help message and exit
+
+required arguments:
+  --user USER           docker user
+  --repo REPO           docker image repository
+  --tag TAG             docker image tag
+  --cloud {us-1,us-2,eu-1}
+                        CS cloud name
+
+Run scan(make sure your image exists locally)
+================================================================
+python cs_scanimage.py --user <username> --repo <repo> --tag <tag> --cloud <cloud>
+please enter password to login
+Password:
+
+================================================================
+above command returns following
+running get_alerts_vuln
+Alert: High severity vulnerability found
+running get_alerts_malware
+running get_alerts_malware
+Leaked secrets detected
+running get_alerts_malware
+Alert: Misconfiguration found
+
+================================================================
+echo $?
+1
+
+echo $? above returns the returned code with the following mappings
+HighVulnerability = 1
+Malware = 2
+Success = 0
+Secrets = 0
+Misconfig = 0
+ScriptFailure = 10
+HighVulnerability | Malware = 3
