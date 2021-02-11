@@ -14,14 +14,15 @@ All output is sent to stdout/stderr.
 ## Prerequisites
 This sample/demo script requires the [Docker Engine API python library](https://pypi.org/project/docker/) and the [``requests`` HTTP library](https://pypi.org/project/requests/). These can be installed via ``pip``:
 
-``shell
+```shell
 $ sudo easy_install pip
 $ pip install docker requests
-``
+```
 
 ## Usage
-``shell
-python cs_scanimage.py --help
+```shell
+$ python cs_scanimage.py --help
+
 usage: cs_scanimage.py [-h] --user USER --repo REPO --tag TAG
                        --cloud {us-1,us-2,eu-1}
 
@@ -36,20 +37,21 @@ required arguments:
   --tag TAG             docker image tag
   --cloud {us-1,us-2,eu-1}
                         CS cloud name
-``
+```
 
 ## Example Scan
 This requires your image to exist locally, e.g. run ``docker pull`` prior to executing this script.
 
-``shell
+```shell
 $ python cs_scanimage.py --user <username> --repo <repo> --tag <tag> --cloud <cloud>
 
 please enter password to login
 Password:
-``
+```
 
 The command above will return output similar to:
-``shell
+
+```shell
 running get_alerts_vuln
 Alert: High severity vulnerability found
 running get_alerts_malware
@@ -57,16 +59,16 @@ running get_alerts_malware
 Leaked secrets detected
 running get_alerts_malware
 Alert: Misconfiguration found
-``
+```
 
-The ``echo $?`` command can be utilized to review the return code, e.g:
-``shell 
+The ```echo $?``` command can be utilized to review the return code, e.g:
+```shell 
 echo $?
 1
-``
+```
 
-The ``echo $?`` above displays the returned code with the following mappings:
-``shell
+The ```echo $?``` above displays the returned code with the following mappings:
+```shell
 HighVulnerability = 1
 Malware = 2
 Success = 0
@@ -74,4 +76,4 @@ Secrets = 0
 Misconfig = 0
 ScriptFailure = 10
 HighVulnerability | Malware = 3
-``
+```
