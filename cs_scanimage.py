@@ -27,7 +27,8 @@ param2 = "tag="
 auth_url_endpoint="/oauth2/token"
 retry_count = 10
 sleep_seconds = 10
-vuln_str_key = 'Vulnerabilities'
+vuln_str_key_1 = 'Vulnerabilities'
+vuln_str_key_2 = 'Vulnerability'
 detect_str_key = 'Detections'
 details_str_key = 'Details'
 cvss_str_key = 'cvss_v2_score'
@@ -120,7 +121,7 @@ class ScanImage(Exception):
         if vulnerabilities != None:        
             for vulnerability in vulnerabilities: 
                 try:
-                    severity = vulnerability[vuln_str_key][details_str_key][cvss_str_key][sev_str_key]
+                    severity = vulnerability[vuln_str_key_2][details_str_key][cvss_str_key][sev_str_key]
                     if severity.lower() == self.severity_high:
                         vuln_code = ScanStatusCode.HighVulnerability.value
                         print("Alert: High severity vulnerability found")
@@ -207,7 +208,7 @@ class BearerAuth(requests.auth.AuthBase):
 def parse_args():
     parser = argparse.ArgumentParser(description='Crowdstrike scan your docker image.')
     required = parser.add_argument_group('required arguments')
-    required.add_argument('--clientid, action="store", dest="client_id", help="Falcon OAuth2 API ClientID", required=True)
+    required.add_argument('--clientid', action="store", dest="client_id", help="Falcon OAuth2 API ClientID", required=True)
     required.add_argument('--repo', action="store", dest="repo", help="docker image repository", required=True)
     required.add_argument('--tag', action="store", dest="tag", help="docker image tag", required=True)
     required.add_argument('--cloud', action="store", dest="cloud", required=True,
@@ -228,7 +229,7 @@ def main():
         scan_image.docker_push()
         token = scan_image.get_api_token()
         scan_report = scan_image.get_scanreport(token)
-        vuln_code = scan_image.get_alerts_vuln(scan_report[vuln_str_key])
+        vuln_code = scan_image.get_alerts_vuln(scan_report[vuln_str_key_1])
         mal_code = scan_image.get_alerts_malware(scan_report[detect_str_key])
         sec_code = scan_image.get_alerts_secrets(scan_report[detect_str_key])
         mcfg_code = scan_image.get_alerts_misconfig(scan_report[detect_str_key])

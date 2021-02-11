@@ -75,5 +75,5 @@ Success = 0
 Secrets = 0
 Misconfig = 0
 ScriptFailure = 10
-HighVulnerability | Malware = 3
+HighVulnerability and Malware = 3
 ```
