@@ -9,7 +9,6 @@ from enum import Enum
 import time
 import getpass
 
-server_domain_part1 = "container-upload.dodo.crowdstrike." 
 registry_url_map = {
     'us-1': 'container-upload.us-1.crowdstrike.com',
     'us-2': 'container-upload.us-2.crowdstrike.com',
