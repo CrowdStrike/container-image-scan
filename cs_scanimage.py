@@ -2,9 +2,6 @@ import argparse
 import docker
 import requests
 import sys
-import json
-from collections import namedtuple
-from argparse import Namespace
 from enum import Enum
 import time
 import getpass
@@ -23,7 +20,7 @@ auth_url_map = {
 scanreport_endpoint = "/reports?"
 param1 = "repository="
 param2 = "tag="
-auth_url_endpoint="/oauth2/token"
+auth_url_endpoint = "/oauth2/token"
 retry_count = 10
 sleep_seconds = 10
 vuln_str_key_1 = 'Vulnerabilities'
@@ -32,6 +29,7 @@ detect_str_key = 'Detections'
 details_str_key = 'Details'
 cvss_str_key = 'cvss_v2_score'
 sev_str_key = 'severity'
+
 
 # class to simulate scanning
 class ScanImage(Exception):
@@ -71,7 +69,7 @@ class ScanImage(Exception):
         print("performing docker push", "repo", self.repo, "tag", self.tag)
         image_str = self.server_domain + "/" + self.repo + ":" + self.tag
         for line in self.client.images.push(image_str, stream=True, decode=True):
-            if(line.has_key('error')):
+            if 'error' in line:
                 raise APIError('docker_push ' + line['error'])
             print(line)
 
@@ -90,7 +88,7 @@ class ScanImage(Exception):
         if resp.status_code == 200 or resp.status_code == 201:
             return resp.json()["access_token"]
         else:
-            raise APIError('POST ' + post_url + ' {}'.format(resp.status_code))       
+            raise APIError('POST ' + post_url + ' {}'.format(resp.status_code))
 
     # Step 5: poll and get scanreport for specified amount of retries
     def get_scanreport(self, token):
@@ -106,19 +104,19 @@ class ScanImage(Exception):
             resp = requests.get(get_url, auth=BearerAuth(token))
             if resp.status_code != 200:
                 print("report not generated yet, retrying ... ")
-            else:    
-                return resp.json() 
-        print("retries exhausted")     
-        raise APIError('GET ' + get_url + ' {}'.format(resp.status_code))     
+            else:
+                return resp.json()
+        print("retries exhausted")
+        raise APIError('GET ' + get_url + ' {}'.format(resp.status_code))
 
-    # Step 6: pass the vulnerabilities from scan report, 
+    # Step 6: pass the vulnerabilities from scan report,
     # loop through and find high severity vulns
-    # return HighVulnerability enum value 
+    # return HighVulnerability enum value
     def get_alerts_vuln(self, vulnerabilities):
-        print("running get_alerts_vuln")        
+        print("running get_alerts_vuln")
         vuln_code = 0
-        if vulnerabilities != None:        
-            for vulnerability in vulnerabilities: 
+        if vulnerabilities is not None:
+            for vulnerability in vulnerabilities:
                 try:
                     severity = vulnerability[vuln_str_key_2][details_str_key][cvss_str_key][sev_str_key]
                     if severity.lower() == self.severity_high:
@@ -126,16 +124,16 @@ class ScanImage(Exception):
                         print("Alert: High severity vulnerability found")
                         break
                 except:
-                    continue    
-        return vuln_code    
+                    continue
+        return vuln_code
 
-    # Step 7: pass the detections from scan report, 
+    # Step 7: pass the detections from scan report,
     # loop through and find if detection type is malware
     # return Malware enum value
     def get_alerts_malware(self, detections):
         print("running get_alerts_malware")
         det_code = 0
-        if detections != None:
+        if detections is not None:
             for detection in detections:
                 try:
                     if detection['Detection']['Type'].lower() == self.type_malware:
@@ -143,16 +141,16 @@ class ScanImage(Exception):
                         det_code = ScanStatusCode.Malware.value
                         break
                 except:
-                    continue  
-        return det_code 
+                    continue
+        return det_code
 
-    # Step 8: pass the detections from scan report, 
+    # Step 8: pass the detections from scan report,
     # loop through and find if detection type is secret
     # return Success enum value but print to stderr
     def get_alerts_secrets(self, detections):
         print("running get_alerts_secrets")
         det_code = 0
-        if detections != None:
+        if detections is not None:
             for detection in detections:
                 try:
                     if detection['Detection']['Type'].lower() == self.type_secret:
@@ -160,16 +158,16 @@ class ScanImage(Exception):
                         det_code = ScanStatusCode.Success.value
                         break
                 except:
-                    continue  
-        return det_code          
+                    continue
+        return det_code
 
-    # Step 9: pass the detections from scan report, 
+    # Step 9: pass the detections from scan report,
     # loop through and find if detection type is misconfig
     # return Success enum value but print to stderr
     def get_alerts_misconfig(self, detections):
         print("running get_alerts_misconfig")
         det_code = 0
-        if detections != None:
+        if detections is not None:
             for detection in detections:
                 try:
                     if detection['Detection']['Type'].lower() == self.type_misconfig:
@@ -177,8 +175,9 @@ class ScanImage(Exception):
                         det_code = ScanStatusCode.Success.value
                         break
                 except:
-                    continue  
+                    continue
         return det_code
+
 
 # these statues are returned and bitwise or'ed
 class ScanStatusCode(Enum):
@@ -186,6 +185,7 @@ class ScanStatusCode(Enum):
     Malware = 2
     Success = 0
     ScriptFailure = 10
+
 
 # api err generated by setting statuses
 class APIError(Exception):
@@ -195,14 +195,17 @@ class APIError(Exception):
         self.status = status
 
     def __str__(self):
-        return "APIError: status={}".format(self.status)    
+        return "APIError: status={}".format(self.status)
+
 
 class BearerAuth(requests.auth.AuthBase):
     def __init__(self, token):
         self.token = token
+
     def __call__(self, r):
         r.headers["authorization"] = "Bearer " + self.token
         return r
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Crowdstrike scan your docker image.')
@@ -211,17 +214,18 @@ def parse_args():
     required.add_argument('--repo', action="store", dest="repo", help="docker image repository", required=True)
     required.add_argument('--tag', action="store", dest="tag", help="docker image tag", required=True)
     required.add_argument('--cloud', action="store", dest="cloud", required=True,
-                            choices=['us-1', 'us-2', 'eu-1'], 
-                            help="CS cloud name")
+                          choices=['us-1', 'us-2', 'eu-1'],
+                          help="CS cloud name")
     args = parser.parse_args()
     return args.__getattribute__("client_id"), args.__getattribute__("repo"), args.__getattribute__("tag"), args.__getattribute__("cloud")
 
+
 def main():
-    try: 
+    try:
         client_id, repo, tag, cloud = parse_args()
         client = docker.from_env()
         print("Please enter your Falcon OAuth2 API Secret")
-        client_secret= getpass.getpass()
+        client_secret = getpass.getpass()
         scan_image = ScanImage(client_id, client_secret, repo, tag, client, cloud)
         scan_image.docker_tag()
         scan_image.docker_login()
@@ -234,12 +238,12 @@ def main():
         mcfg_code = scan_image.get_alerts_misconfig(scan_report[detect_str_key])
         sys.exit(vuln_code | mal_code | sec_code | mcfg_code)
     except APIError as e:
-        print("Unable to scan", e) 
+        print("Unable to scan", e)
         sys.exit(ScanStatusCode.ScriptFailure.value)
     except Exception as e:
-        print("Unknown error ", e) 
+        print("Unknown error ", e)
         sys.exit(ScanStatusCode.ScriptFailure.value)
+
 
 if __name__ == "__main__":
     main()
-
