@@ -4,8 +4,8 @@ This script will scan a container and return response codes indicating pass/fail
 
 Specifically, this script:
 1. Tags your image using ``docker tag``
-2. Authenticats to CrowdStrike using your [OAuth2 API keys](https://falcon.crowdstrike.com/support/api-clients-and-keys)
-3. Pushes your image to CrowdStrike for evaluation using ``docker push``, afterwhich CrowdStrike performs an Image Scan
+2. Authenticates to CrowdStrike using your [OAuth2 API keys](https://falcon.crowdstrike.com/support/api-clients-and-keys)
+3. Pushes your image to CrowdStrike for evaluation using ``docker push``, after which CrowdStrike performs an Image Scan
 4. Parses returned scan report, generating return error codes as needed
 
 All output is sent to stdout/stderr.
