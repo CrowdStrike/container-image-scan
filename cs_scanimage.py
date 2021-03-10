@@ -232,17 +232,17 @@ def parse_args():
         description='Crowdstrike - scan your container image.')
     required = parser.add_argument_group('required arguments')
     required.add_argument('-u', '--clientid', action=EnvDefault,
-                          dest="client_id", envvar='CLIENT_ID',
+                          dest="client_id", envvar='FALCON_CLIENT_ID',
                           help="Falcon OAuth2 API ClientID")
     required.add_argument('-r', '--repo', action=EnvDefault, dest="repo",
-                          envvar='DOCKER_REPO',
-                          help="Docker image repository")
+                          envvar='CONTAINER_REPO',
+                          help="CONTAINER image repository")
     required.add_argument('-t', '--tag', action=EnvDefault, dest="tag",
                           default='latest',
-                          envvar='DOCKER_TAG',
-                          help="Docker image tag")
+                          envvar='CONTAINER_TAG',
+                          help="Container image tag")
     required.add_argument('-c', '--cloud', action=EnvDefault, dest="cloud",
-                          envvar="CLOUD",
+                          envvar="FALCON_CLOUD",
                           default='us-1',
                           choices=['us-1', 'us-2', 'eu-1'],
                           help="CrowdStrike cloud region")
@@ -255,7 +255,7 @@ def main():
     try:
         client_id, repo, tag, cloud = parse_args()
         client = docker.from_env()
-        client_secret = env.get('CLIENT_SECRET')
+        client_secret = env.get('FALCON_CLIENT_SECRET')
         if client_secret is None:
             print("Please enter your Falcon OAuth2 API Secret")
             client_secret = getpass.getpass()
