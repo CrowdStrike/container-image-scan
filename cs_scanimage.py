@@ -57,7 +57,12 @@ class ScanImage(Exception):
         local_tag = self.repo + ":" + self.tag
         url_tag = self.server_domain + "/" + self.repo
         print("tagging " + local_tag + " to " + url_tag + ":" + self.tag)
-        dock_api_client = docker.APIClient()
+
+        try:
+            dock_api_client = docker.APIClient()
+        except AttributeError:
+            dock_api_client = docker.Client()
+
         dock_api_client.tag(local_tag, url_tag, self.tag, force=True)
 
     # Step 2: login using the credentials supplied
@@ -70,7 +75,13 @@ class ScanImage(Exception):
     def docker_push(self):
         print("performing docker push", "repo", self.repo, "tag", self.tag)
         image_str = self.server_domain + "/" + self.repo + ":" + self.tag
-        for line in self.client.images.push(image_str, stream=True, decode=True):
+
+        try:
+            image_push = self.client.images.push(image_str, stream=True, decode=True)
+        except AttributeError:
+            image_push = self.client.push(image_str, stream=True, decode=True)
+
+        for line in image_push:
             if 'error' in line:
                 raise APIError('docker_push ' + line['error'])
             print(line)
@@ -236,7 +247,7 @@ def parse_args():
                           help="Falcon OAuth2 API ClientID")
     required.add_argument('-r', '--repo', action=EnvDefault, dest="repo",
                           envvar='CONTAINER_REPO',
-                          help="CONTAINER image repository")
+                          help="Container image repository")
     required.add_argument('-t', '--tag', action=EnvDefault, dest="tag",
                           default='latest',
                           envvar='CONTAINER_TAG',
