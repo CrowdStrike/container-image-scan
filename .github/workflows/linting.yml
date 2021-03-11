@@ -1,6 +1,8 @@
 name: Flake8 Linting
 
 on:
+  push:
+    branches: [ main ]
   pull_request:
     branches: [ main ]
 
