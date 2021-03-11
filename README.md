@@ -1,4 +1,4 @@
-# CI/CD Falcon Tutorial
+# CI/CD Falcon Tutorial [![Flake8](https://github.com/CrowdStrike/cicd-falcon-tutorial/actions/workflows/linting.yml/badge.svg)](https://github.com/CrowdStrike/cicd-falcon-tutorial/actions/workflows/linting.yml)
 
 This script will scan a container and return response codes indicating pass/fail status.
 
