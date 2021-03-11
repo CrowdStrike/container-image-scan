@@ -291,11 +291,7 @@ def main():
         scan_image.docker_push()
         token = scan_image.get_api_token()
         scan_report = scan_image.get_scanreport(token)
-        vuln_code = scan_report.get_alerts_vuln()
-        mal_code = scan_report.get_alerts_malware()
-        sec_code = scan_report.get_alerts_secrets()
-        mcfg_code = scan_report.get_alerts_misconfig()
-        sys.exit(vuln_code | mal_code | sec_code | mcfg_code)
+        sys.exit(scan_report.status_code())
     except APIError as e:
         print("Unable to scan", e)
         sys.exit(ScanStatusCode.ScriptFailure.value)
