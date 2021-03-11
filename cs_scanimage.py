@@ -24,23 +24,11 @@ param2 = "tag="
 auth_url_endpoint = "/oauth2/token"
 retry_count = 10
 sleep_seconds = 10
-vuln_str_key_1 = 'Vulnerabilities'
-vuln_str_key_2 = 'Vulnerability'
-detect_str_key = 'Detections'
-details_str_key = 'Details'
-cvss_str_key = 'cvss_v2_score'
-sev_str_key = 'severity'
 
 
 # class to simulate scanning
 class ScanImage(Exception):
     """Scanning Image Tasks"""
-
-    type_malware = "malware"
-    type_misconfig = 'misconfiguration'
-    type_secret = "secret"
-    type_cis = "cis"
-    severity_high = "high"
 
     def __init__(self, client_id, client_secret, repo, tag, client, cloud):
         self.client_id = client_id
@@ -118,20 +106,43 @@ class ScanImage(Exception):
             if resp.status_code != 200:
                 print("report not generated yet, retrying ... ")
             else:
-                return resp.json()
+                return ScanReport(resp.json())
         print("retries exhausted")
         raise APIError('GET ' + get_url + ' {}'.format(resp.status_code))
+
+
+class ScanReport(dict):
+    """Summary Report of the Image Scan"""
+    vuln_str_key_1 = 'Vulnerabilities'
+    vuln_str_key_2 = 'Vulnerability'
+    details_str_key = 'Details'
+    detect_str_key = 'Detections'
+    cvss_str_key = 'cvss_v2_score'
+    sev_str_key = 'severity'
+
+    severity_high = "high"
+    type_malware = "malware"
+    type_secret = "secret"
+    type_misconfig = 'misconfiguration'
+
+    def status_code(self):
+        vuln_code = self.get_alerts_vuln()
+        mal_code = self.get_alerts_malware()
+        sec_code = self.get_alerts_secrets()
+        mcfg_code = self.get_alerts_misconfig()
+        return(vuln_code | mal_code | sec_code | mcfg_code)
 
     # Step 6: pass the vulnerabilities from scan report,
     # loop through and find high severity vulns
     # return HighVulnerability enum value
-    def get_alerts_vuln(self, vulnerabilities):
+    def get_alerts_vuln(self):
         print("running get_alerts_vuln")
         vuln_code = 0
+        vulnerabilities = self[self.vuln_str_key_1]
         if vulnerabilities is not None:
             for vulnerability in vulnerabilities:
                 try:
-                    severity = vulnerability[vuln_str_key_2][details_str_key][cvss_str_key][sev_str_key]
+                    severity = vulnerability[self.vuln_str_key_2][self.details_str_key][self.cvss_str_key][self.sev_str_key]
                     if severity.lower() == self.severity_high:
                         vuln_code = ScanStatusCode.HighVulnerability.value
                         print("Alert: High severity vulnerability found")
@@ -143,9 +154,10 @@ class ScanImage(Exception):
     # Step 7: pass the detections from scan report,
     # loop through and find if detection type is malware
     # return Malware enum value
-    def get_alerts_malware(self, detections):
+    def get_alerts_malware(self):
         print("running get_alerts_malware")
         det_code = 0
+        detections = self[self.detect_str_key]
         if detections is not None:
             for detection in detections:
                 try:
@@ -160,9 +172,10 @@ class ScanImage(Exception):
     # Step 8: pass the detections from scan report,
     # loop through and find if detection type is secret
     # return Success enum value but print to stderr
-    def get_alerts_secrets(self, detections):
+    def get_alerts_secrets(self):
         print("running get_alerts_secrets")
         det_code = 0
+        detections = self[self.detect_str_key]
         if detections is not None:
             for detection in detections:
                 try:
@@ -178,9 +191,10 @@ class ScanImage(Exception):
     # Step 9: pass the detections from scan report,
     # loop through and find if detection type is misconfig
     # return Success enum value but print to stderr
-    def get_alerts_misconfig(self, detections):
+    def get_alerts_misconfig(self):
         print("running get_alerts_misconfig")
         det_code = 0
+        detections = self[self.detect_str_key]
         if detections is not None:
             for detection in detections:
                 try:
@@ -277,12 +291,7 @@ def main():
         scan_image.docker_push()
         token = scan_image.get_api_token()
         scan_report = scan_image.get_scanreport(token)
-        vuln_code = scan_image.get_alerts_vuln(scan_report[vuln_str_key_1])
-        mal_code = scan_image.get_alerts_malware(scan_report[detect_str_key])
-        sec_code = scan_image.get_alerts_secrets(scan_report[detect_str_key])
-        mcfg_code = scan_image.get_alerts_misconfig(
-            scan_report[detect_str_key])
-        sys.exit(vuln_code | mal_code | sec_code | mcfg_code)
+        sys.exit(scan_report.status_code())
     except APIError as e:
         print("Unable to scan", e)
         sys.exit(ScanStatusCode.ScriptFailure.value)
