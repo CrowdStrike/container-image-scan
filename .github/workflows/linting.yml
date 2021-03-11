@@ -20,4 +20,4 @@ jobs:
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
-        flake8 *.py --count --max-line-length=127 --statistics
+        flake8 *.py --count --max-line-length=131 --statistics
