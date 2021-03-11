@@ -118,9 +118,31 @@ class ScanImage(Exception):
             if resp.status_code != 200:
                 print("report not generated yet, retrying ... ")
             else:
-                return resp.json()
+                return ScanReport(resp.json())
         print("retries exhausted")
         raise APIError('GET ' + get_url + ' {}'.format(resp.status_code))
+
+
+class ScanReport(dict):
+    """Summary Report of the Image Scan"""
+    vuln_str_key_1 = 'Vulnerabilities'
+    vuln_str_key_2 = 'Vulnerability'
+    details_str_key = 'Details'
+    detect_str_key = 'Detections'
+    cvss_str_key = 'cvss_v2_score'
+    sev_str_key = 'severity'
+
+    severity_high = "high"
+    type_malware = "malware"
+    type_secret = "secret"
+    type_misconfig = 'misconfiguration'
+
+    def status_code(self):
+        vuln_code = self.get_alerts_vuln()
+        mal_code = self.get_alerts_malware()
+        sec_code = self.get_alerts_secrets()
+        mcfg_code = self.get_alerts_misconfig()
+        return(vuln_code | mal_code | sec_code | mcfg_code)
 
     # Step 6: pass the vulnerabilities from scan report,
     # loop through and find high severity vulns
