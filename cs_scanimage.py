@@ -147,7 +147,7 @@ class ScanReport(dict):
                         vuln_code = ScanStatusCode.HighVulnerability.value
                         print("Alert: High severity vulnerability found")
                         break
-                except:
+                except KeyError:
                     continue
         return vuln_code
 
@@ -165,7 +165,7 @@ class ScanReport(dict):
                         print("Alert: Malware found")
                         det_code = ScanStatusCode.Malware.value
                         break
-                except:
+                except KeyError:
                     continue
         return det_code
 
@@ -184,7 +184,7 @@ class ScanReport(dict):
                               file=sys.stderr)
                         det_code = ScanStatusCode.Success.value
                         break
-                except:
+                except KeyError:
                     continue
         return det_code
 
@@ -202,7 +202,7 @@ class ScanReport(dict):
                         print("Alert: Misconfiguration found", file=sys.stderr)
                         det_code = ScanStatusCode.Success.value
                         break
-                except:
+                except KeyError:
                     continue
         return det_code
 
