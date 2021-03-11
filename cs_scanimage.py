@@ -2,6 +2,7 @@ import argparse
 import docker
 import requests
 import sys
+from os import environ as env
 from enum import Enum
 import time
 import getpass
@@ -56,19 +57,31 @@ class ScanImage(Exception):
         local_tag = self.repo + ":" + self.tag
         url_tag = self.server_domain + "/" + self.repo
         print("tagging " + local_tag + " to " + url_tag + ":" + self.tag)
-        dock_api_client = docker.APIClient()
+
+        try:
+            dock_api_client = docker.APIClient()
+        except AttributeError:
+            dock_api_client = docker.Client()
+
         dock_api_client.tag(local_tag, url_tag, self.tag, force=True)
 
     # Step 2: login using the credentials supplied
     def docker_login(self):
         print("performing docker login")
-        self.client.login(username=self.client_id, password=self.client_secret, registry=self.server_domain)
+        self.client.login(username=self.client_id,
+                          password=self.client_secret, registry=self.server_domain)
 
     # Step 3: perform docker push using the repo and tag supplied
     def docker_push(self):
         print("performing docker push", "repo", self.repo, "tag", self.tag)
         image_str = self.server_domain + "/" + self.repo + ":" + self.tag
-        for line in self.client.images.push(image_str, stream=True, decode=True):
+
+        try:
+            image_push = self.client.images.push(image_str, stream=True, decode=True)
+        except AttributeError:
+            image_push = self.client.push(image_str, stream=True, decode=True)
+
+        for line in image_push:
             if 'error' in line:
                 raise APIError('docker_push ' + line['error'])
             print(line)
@@ -154,7 +167,8 @@ class ScanImage(Exception):
             for detection in detections:
                 try:
                     if detection['Detection']['Type'].lower() == self.type_secret:
-                        print >> sys.stderr, "Alert: Leaked secrets detected"
+                        print("Alert: Leaked secrets detected",
+                              file=sys.stderr)
                         det_code = ScanStatusCode.Success.value
                         break
                 except:
@@ -171,7 +185,7 @@ class ScanImage(Exception):
             for detection in detections:
                 try:
                     if detection['Detection']['Type'].lower() == self.type_misconfig:
-                        print >> sys.stderr, "Alert: Misconfiguration found"
+                        print("Alert: Misconfiguration found", file=sys.stderr)
                         det_code = ScanStatusCode.Success.value
                         break
                 except:
@@ -207,26 +221,57 @@ class BearerAuth(requests.auth.AuthBase):
         return r
 
 
+# The following class was authored by Russell Heilling
+# See https://stackoverflow.com/questions/10551117/setting-options-from-environment-variables-when-using-argparse/10551190#10551190
+class EnvDefault(argparse.Action):
+    def __init__(self, envvar, required=True, default=None, **kwargs):
+        if not default and envvar:
+            if envvar in env:
+                default = env[envvar]
+        if required and default:
+            required = False
+        super(EnvDefault, self).__init__(default=default, required=required,
+                                         **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, self.dest, values)
+# End code authored by Russell Heilling
+
+
 def parse_args():
-    parser = argparse.ArgumentParser(description='Crowdstrike scan your docker image.')
+    parser = argparse.ArgumentParser(
+        description='Crowdstrike - scan your container image.')
     required = parser.add_argument_group('required arguments')
-    required.add_argument('--clientid', action="store", dest="client_id", help="Falcon OAuth2 API ClientID", required=True)
-    required.add_argument('--repo', action="store", dest="repo", help="docker image repository", required=True)
-    required.add_argument('--tag', action="store", dest="tag", help="docker image tag", required=True)
-    required.add_argument('--cloud', action="store", dest="cloud", required=True,
+    required.add_argument('-u', '--clientid', action=EnvDefault,
+                          dest="client_id", envvar='FALCON_CLIENT_ID',
+                          help="Falcon OAuth2 API ClientID")
+    required.add_argument('-r', '--repo', action=EnvDefault, dest="repo",
+                          envvar='CONTAINER_REPO',
+                          help="Container image repository")
+    required.add_argument('-t', '--tag', action=EnvDefault, dest="tag",
+                          default='latest',
+                          envvar='CONTAINER_TAG',
+                          help="Container image tag")
+    required.add_argument('-c', '--cloud', action=EnvDefault, dest="cloud",
+                          envvar="FALCON_CLOUD",
+                          default='us-1',
                           choices=['us-1', 'us-2', 'eu-1'],
-                          help="CS cloud name")
+                          help="CrowdStrike cloud region")
     args = parser.parse_args()
-    return args.__getattribute__("client_id"), args.__getattribute__("repo"), args.__getattribute__("tag"), args.__getattribute__("cloud")
+
+    return args.client_id, args.repo, args.tag, args.cloud
 
 
 def main():
     try:
         client_id, repo, tag, cloud = parse_args()
         client = docker.from_env()
-        print("Please enter your Falcon OAuth2 API Secret")
-        client_secret = getpass.getpass()
-        scan_image = ScanImage(client_id, client_secret, repo, tag, client, cloud)
+        client_secret = env.get('FALCON_CLIENT_SECRET')
+        if client_secret is None:
+            print("Please enter your Falcon OAuth2 API Secret")
+            client_secret = getpass.getpass()
+        scan_image = ScanImage(client_id, client_secret,
+                               repo, tag, client, cloud)
         scan_image.docker_tag()
         scan_image.docker_login()
         scan_image.docker_push()
@@ -235,7 +280,8 @@ def main():
         vuln_code = scan_image.get_alerts_vuln(scan_report[vuln_str_key_1])
         mal_code = scan_image.get_alerts_malware(scan_report[detect_str_key])
         sec_code = scan_image.get_alerts_secrets(scan_report[detect_str_key])
-        mcfg_code = scan_image.get_alerts_misconfig(scan_report[detect_str_key])
+        mcfg_code = scan_image.get_alerts_misconfig(
+            scan_report[detect_str_key])
         sys.exit(vuln_code | mal_code | sec_code | mcfg_code)
     except APIError as e:
         print("Unable to scan", e)
