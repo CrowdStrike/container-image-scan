@@ -30,8 +30,6 @@ sleep_seconds = 10
 class ScanImage(Exception):
     """Scanning Image Tasks"""
 
-    type_cis = "cis"
-
     def __init__(self, client_id, client_secret, repo, tag, client, cloud):
         self.client_id = client_id
         self.client_secret = client_secret
