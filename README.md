@@ -15,13 +15,12 @@ All output is sent to stdout/stderr.
 This sample/demo script requires the [Docker Engine API python library](https://pypi.org/project/docker/) and the [``requests`` HTTP library](https://pypi.org/project/requests/). These can be installed via ``pip``:
 
 ```shell
-$ sudo easy_install pip
-$ pip install docker requests
+$ pip3 install docker requests
 ```
 
 ## Usage
 ```shell
-$ python cs_scanimage.py --help
+$ python3 cs_scanimage.py --help
 usage: cs_scanimage.py [-h] [-u CLIENT_ID] -r REPO [-t TAG] [-c {us-1,us-2,eu-1}]
                        [--json-report REPORT]
 
