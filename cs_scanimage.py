@@ -26,7 +26,7 @@ param2 = "tag="
 auth_url_endpoint = "/oauth2/token"
 retry_count = 10
 sleep_seconds = 10
-logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(levelname)-8s%(message)s')
+logging.basicConfig(stream=sys.stdout, format='%(levelname)-8s%(message)s')
 log = logging.getLogger('cs_scanimage')
 
 
@@ -284,7 +284,11 @@ def parse_args():
                           help="CrowdStrike cloud region")
     parser.add_argument('--json-report', dest="report", default=None,
                         help='Export JSON report to specified file')
+    parser.add_argument('--log-level', dest='log_level', default='INFO',
+                        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+                        help="Set the logging level")
     args = parser.parse_args()
+    logging.getLogger().setLevel(args.log_level)
 
     return args.client_id, args.repo, args.tag, args.cloud, args.report
 
