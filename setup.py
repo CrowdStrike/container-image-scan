@@ -8,13 +8,13 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setup(
-    name="cicd-falcon-tutorial",
+    name="container-image-scan",
     version="0.0.1",
     author="CrowdStrike",
     description="Script to scan a container and return response codes indicating pass/fail",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/crowdstrike/cicd-falcon-tutorial",
+    url="https://github.com/crowdstrike/container-image-scan",
     packages=find_packages("."),
     package_dir={"": "."},
     py_modules=[splitext(basename(path))[0] for path in glob("*.py")],
