@@ -1,3 +1,4 @@
+from __future__ import print_function
 import argparse
 import docker
 import json
@@ -8,6 +9,7 @@ from os import environ as env
 from enum import Enum
 import time
 import getpass
+
 
 registry_url_map = {
     'us-1': 'container-upload.us-1.crowdstrike.com',
@@ -20,12 +22,7 @@ auth_url_map = {
     'eu-1': 'https://api.eu-1.crowdstrike.com',
 }
 
-scanreport_endpoint = "/reports?"
-param1 = "repository="
-param2 = "tag="
-auth_url_endpoint = "/oauth2/token"
-retry_count = 10
-sleep_seconds = 10
+
 logging.basicConfig(stream=sys.stdout, format='%(levelname)-8s%(message)s')
 log = logging.getLogger('cs_scanimage')
 
@@ -41,19 +38,25 @@ class ScanImage(Exception):
         self.tag = tag
         self.client = client
         self.server_domain = registry_url_map[cloud]
-        self.auth_url = auth_url_map[cloud] + auth_url_endpoint
+        self.auth_url = "%s/oauth2/token" % (auth_url_map[cloud])
 
     # Step 1: perform docker tag to the registry corresponding to the cloud entered
     def docker_tag(self):
-        local_tag = self.repo + ":" + self.tag
-        url_tag = self.server_domain + "/" + self.repo
-        log.info("Tagging image " + local_tag + " to " + url_tag + ":" + self.tag)
+        local_tag = "%s:%s" % (self.repo, self.tag)
+        url_tag = "%s/%s" % (self.server_domain, self.repo)
 
         try:
             dock_api_client = docker.APIClient()
         except AttributeError:
             dock_api_client = docker.Client()
 
+        container_image = ''.join((''.join(img["RepoTags"])
+                                   for img in dock_api_client.images(name=local_tag)))
+        if not container_image:
+            log.info("Pulling container image: '%s'" % (local_tag))
+            dock_api_client.pull(self.repo, self.tag)
+
+        log.info("Tagging '%s' to '%s:%s'" % (local_tag, url_tag, self.tag))
         dock_api_client.tag(local_tag, url_tag, self.tag, force=True)
 
     # Step 2: login using the credentials supplied
@@ -64,11 +67,12 @@ class ScanImage(Exception):
 
     # Step 3: perform docker push using the repo and tag supplied
     def docker_push(self):
-        image_str = self.server_domain + "/" + self.repo + ":" + self.tag
+        image_str = "%s/%s:%s" % (self.server_domain, self.repo, self.tag)
         log.info("Performing docker push to %s", image_str)
 
         try:
-            image_push = self.client.images.push(image_str, stream=True, decode=True)
+            image_push = self.client.images.push(
+                image_str, stream=True, decode=True)
         except AttributeError:
             image_push = self.client.push(image_str, stream=True, decode=True)
 
@@ -103,16 +107,21 @@ class ScanImage(Exception):
     # Step 5: poll and get scanreport for specified amount of retries
     def get_scanreport(self, token):
         log.info("Downloading Image Scan Report")
-        server_url = "https://" + self.server_domain
-        scanreport_url = server_url + scanreport_endpoint
-        get_url = scanreport_url + param1 + self.repo + "&" + param2 + self.tag
+        scanreport_endpoint = "/reports?"
+        server_url = "https://%s" % (self.server_domain)
+        scanreport_url = "%s%s" % (server_url, scanreport_endpoint)
+        retry_count = 10
+        sleep_seconds = 10
+        get_url = "%srepository=%s&tag=%s" % (
+            scanreport_url, self.repo, self.tag)
 
         for count in range(retry_count):
             time.sleep(sleep_seconds)
             log.debug("retry count %s", count)
             resp = requests.get(get_url, auth=BearerAuth(token))
             if resp.status_code != 200:
-                log.info("Scan report is not ready yet, retrying in %s seconds", sleep_seconds)
+                log.info(
+                    "Scan report is not ready yet, retrying in %s seconds", sleep_seconds)
             else:
                 return ScanReport(resp.json())
         log.error("Retries exhausted")
@@ -145,7 +154,7 @@ class ScanReport(dict):
     # loop through and find high severity vulns
     # return HighVulnerability enum value
     def get_alerts_vuln(self):
-        log.info("running get_alerts_vuln")
+        log.info("Searching for vulnerabilities in scan report...")
         vuln_code = 0
         vulnerabilities = self[self.vuln_str_key_1]
         if vulnerabilities is not None:
@@ -163,7 +172,8 @@ class ScanReport(dict):
                 product = vuln.get('Product', {})
                 affects = product.get('PackageSource', product)
                 if severity.lower() not in ['low', 'medium']:
-                    log.warning("%-8s %-16s Vulnerability detected affecting %s", severity, cve, affects)
+                    log.warning(
+                        "%-8s %-16s Vulnerability detected affecting %s", severity, cve, affects)
                     vuln_code = ScanStatusCode.HighVulnerability.value
         return vuln_code
 
@@ -171,7 +181,7 @@ class ScanReport(dict):
     # loop through and find if detection type is malware
     # return Malware enum value
     def get_alerts_malware(self):
-        log.info("running get_alerts_malware")
+        log.info("Searching for malware in scan report...")
         det_code = 0
         detections = self[self.detect_str_key]
         if detections is not None:
@@ -189,7 +199,7 @@ class ScanReport(dict):
     # loop through and find if detection type is secret
     # return Success enum value
     def get_alerts_secrets(self):
-        log.info("running get_alerts_secrets")
+        log.info("Searching for leaked secrets in scan report...")
         det_code = 0
         detections = self[self.detect_str_key]
         if detections is not None:
@@ -207,7 +217,7 @@ class ScanReport(dict):
     # loop through and find if detection type is misconfig
     # return Success enum value
     def get_alerts_misconfig(self):
-        log.info("running get_alerts_misconfig")
+        log.info("Searching for misconfigurations in scan report...")
         det_code = 0
         detections = self[self.detect_str_key]
         if detections is not None:
@@ -281,15 +291,16 @@ def parse_args():
                           default='latest',
                           envvar='CONTAINER_TAG',
                           help="Container image tag")
-    required.add_argument('-c', '--cloud', action=EnvDefault, dest="cloud",
-                          envvar="FALCON_CLOUD",
+    required.add_argument('-c', '--cloud-region', action=EnvDefault, dest="cloud",
+                          envvar="FALCON_CLOUD_REGION",
                           default='us-1',
                           choices=['us-1', 'us-2', 'eu-1'],
                           help="CrowdStrike cloud region")
     parser.add_argument('--json-report', dest="report", default=None,
                         help='Export JSON report to specified file')
     parser.add_argument('--log-level', dest='log_level', default='INFO',
-                        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+                        choices=['DEBUG', 'INFO',
+                                 'WARNING', 'ERROR', 'CRITICAL'],
                         help="Set the logging level")
     args = parser.parse_args()
     logging.getLogger().setLevel(args.log_level)
