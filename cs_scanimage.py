@@ -1,6 +1,7 @@
 import argparse
 import docker
 import json
+import logging
 import requests
 import sys
 from os import environ as env
@@ -25,6 +26,8 @@ param2 = "tag="
 auth_url_endpoint = "/oauth2/token"
 retry_count = 10
 sleep_seconds = 10
+logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(levelname)-8s%(message)s')
+log = logging.getLogger('cs_scanimage')
 
 
 # class to simulate scanning
@@ -42,10 +45,9 @@ class ScanImage(Exception):
 
     # Step 1: perform docker tag to the registry corresponding to the cloud entered
     def docker_tag(self):
-        print("performing docker tag", "repo", self.repo, "tag", self.tag)
         local_tag = self.repo + ":" + self.tag
         url_tag = self.server_domain + "/" + self.repo
-        print("tagging " + local_tag + " to " + url_tag + ":" + self.tag)
+        log.info("Tagging image " + local_tag + " to " + url_tag + ":" + self.tag)
 
         try:
             dock_api_client = docker.APIClient()
@@ -56,14 +58,14 @@ class ScanImage(Exception):
 
     # Step 2: login using the credentials supplied
     def docker_login(self):
-        print("performing docker login")
+        log.info("Performing docker login to CrowdStrike Image Assessment Service")
         self.client.login(username=self.client_id,
                           password=self.client_secret, registry=self.server_domain)
 
     # Step 3: perform docker push using the repo and tag supplied
     def docker_push(self):
-        print("performing docker push", "repo", self.repo, "tag", self.tag)
         image_str = self.server_domain + "/" + self.repo + ":" + self.tag
+        log.info("Performing docker push to %s", image_str)
 
         try:
             image_push = self.client.images.push(image_str, stream=True, decode=True)
@@ -73,11 +75,17 @@ class ScanImage(Exception):
         for line in image_push:
             if 'error' in line:
                 raise APIError('docker_push ' + line['error'])
-            print(line)
+
+            if 'status' in line and line['status'] == 'Pushing':
+                print("Pushing {}".format(line['progress']), end='\r')
+            elif 'status' in line:
+                log.info("Docker: %s", line['status'])
+            else:
+                log.debug(line)
 
     # Step 4: get the api token used for getting the scan report
     def get_api_token(self):
-        print("Getting API Token")
+        log.info("Authenticating with CrowdStrike Falcon API")
         post_url = self.auth_url
         payload = {
             "client_id": self.client_id,
@@ -94,21 +102,20 @@ class ScanImage(Exception):
 
     # Step 5: poll and get scanreport for specified amount of retries
     def get_scanreport(self, token):
-        print("Getting Scan Report")
+        log.info("Downloading Image Scan Report")
         server_url = "https://" + self.server_domain
         scanreport_url = server_url + scanreport_endpoint
         get_url = scanreport_url + param1 + self.repo + "&" + param2 + self.tag
-        count = 0
-        while count < retry_count:
-            count += 1
-            print("retry count", count)
+
+        for count in range(retry_count):
             time.sleep(sleep_seconds)
+            log.debug("retry count %s", count)
             resp = requests.get(get_url, auth=BearerAuth(token))
             if resp.status_code != 200:
-                print("report not generated yet, retrying ... ")
+                log.info("Scan report is not ready yet, retrying in %s seconds", sleep_seconds)
             else:
                 return ScanReport(resp.json())
-        print("retries exhausted")
+        log.error("Retries exhausted")
         raise APIError('GET ' + get_url + ' {}'.format(resp.status_code))
 
 
@@ -141,7 +148,7 @@ class ScanReport(dict):
     # loop through and find high severity vulns
     # return HighVulnerability enum value
     def get_alerts_vuln(self):
-        print("running get_alerts_vuln")
+        log.info("running get_alerts_vuln")
         vuln_code = 0
         vulnerabilities = self[self.vuln_str_key_1]
         if vulnerabilities is not None:
@@ -150,7 +157,7 @@ class ScanReport(dict):
                     severity = vulnerability[self.vuln_str_key_2][self.details_str_key][self.cvss_str_key][self.sev_str_key]
                     if severity.lower() == self.severity_high:
                         vuln_code = ScanStatusCode.HighVulnerability.value
-                        print("Alert: High severity vulnerability found")
+                        log.warning("Alert: High severity vulnerability found")
                         break
                 except KeyError:
                     continue
@@ -160,14 +167,14 @@ class ScanReport(dict):
     # loop through and find if detection type is malware
     # return Malware enum value
     def get_alerts_malware(self):
-        print("running get_alerts_malware")
+        log.info("running get_alerts_malware")
         det_code = 0
         detections = self[self.detect_str_key]
         if detections is not None:
             for detection in detections:
                 try:
                     if detection['Detection']['Type'].lower() == self.type_malware:
-                        print("Alert: Malware found")
+                        log.warning("Alert: Malware found")
                         det_code = ScanStatusCode.Malware.value
                         break
                 except KeyError:
@@ -176,17 +183,16 @@ class ScanReport(dict):
 
     # Step 8: pass the detections from scan report,
     # loop through and find if detection type is secret
-    # return Success enum value but print to stderr
+    # return Success enum value
     def get_alerts_secrets(self):
-        print("running get_alerts_secrets")
+        log.info("running get_alerts_secrets")
         det_code = 0
         detections = self[self.detect_str_key]
         if detections is not None:
             for detection in detections:
                 try:
                     if detection['Detection']['Type'].lower() == self.type_secret:
-                        print("Alert: Leaked secrets detected",
-                              file=sys.stderr)
+                        log.error("Alert: Leaked secrets detected")
                         det_code = ScanStatusCode.Success.value
                         break
                 except KeyError:
@@ -195,16 +201,16 @@ class ScanReport(dict):
 
     # Step 9: pass the detections from scan report,
     # loop through and find if detection type is misconfig
-    # return Success enum value but print to stderr
+    # return Success enum value
     def get_alerts_misconfig(self):
-        print("running get_alerts_misconfig")
+        log.info("running get_alerts_misconfig")
         det_code = 0
         detections = self[self.detect_str_key]
         if detections is not None:
             for detection in detections:
                 try:
                     if detection['Detection']['Type'].lower() == self.type_misconfig:
-                        print("Alert: Misconfiguration found", file=sys.stderr)
+                        log.warning("Alert: Misconfiguration found")
                         det_code = ScanStatusCode.Success.value
                         break
                 except KeyError:
@@ -302,11 +308,11 @@ def main():
         if json_report:
             scan_report.export(json_report)
         sys.exit(scan_report.status_code())
-    except APIError as e:
-        print("Unable to scan", e)
+    except APIError:
+        log.exception("Unable to scan")
         sys.exit(ScanStatusCode.ScriptFailure.value)
-    except Exception as e:
-        print("Unknown error ", e)
+    except Exception:
+        log.exception("Unknown error")
         sys.exit(ScanStatusCode.ScriptFailure.value)
 
 
