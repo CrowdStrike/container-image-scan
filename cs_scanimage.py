@@ -122,11 +122,8 @@ class ScanImage(Exception):
 class ScanReport(dict):
     """Summary Report of the Image Scan"""
     vuln_str_key_1 = 'Vulnerabilities'
-    vuln_str_key_2 = 'Vulnerability'
     details_str_key = 'Details'
     detect_str_key = 'Detections'
-    cvss_str_key = 'cvss_v2_score'
-    sev_str_key = 'severity'
 
     severity_high = "high"
     type_malware = "malware"
@@ -153,14 +150,21 @@ class ScanReport(dict):
         vulnerabilities = self[self.vuln_str_key_1]
         if vulnerabilities is not None:
             for vulnerability in vulnerabilities:
-                try:
-                    severity = vulnerability[self.vuln_str_key_2][self.details_str_key][self.cvss_str_key][self.sev_str_key]
-                    if severity.lower() == self.severity_high:
-                        vuln_code = ScanStatusCode.HighVulnerability.value
-                        log.warning("Alert: High severity vulnerability found")
-                        break
-                except KeyError:
-                    continue
+                vuln = vulnerability['Vulnerability']
+                cve = vuln.get('CVEID', 'CVE-unknown')
+                details = vuln.get('Details', {})
+                cvss_v3 = details.get('cvss_v3_score', {})
+                severity = cvss_v3.get('severity')
+                if severity is None:
+                    cvss_v2 = details.get('cvss_v2_score', {})
+                    severity = cvss_v2.get('severity')
+                if severity is None:
+                    severity = details.get('severity', 'UNKNOWM')
+                product = vuln.get('Product', {})
+                affects = product.get('PackageSource', product)
+                if severity.lower() not in ['low', 'medium']:
+                    log.warning("%-8s %-16s Vulnerability detected affecting %s", severity, cve, affects)
+                    vuln_code = ScanStatusCode.HighVulnerability.value
         return vuln_code
 
     # Step 7: pass the detections from scan report,
