@@ -21,31 +21,34 @@ $ pip3 install docker requests
 ## Usage
 ```shell
 $ python3 cs_scanimage.py --help
-usage: cs_scanimage.py [-h] [-u CLIENT_ID] -r REPO [-t TAG] [-c {us-1,us-2,eu-1}]
-                       [--json-report REPORT]
+usage: cs_scanimage.py [-h] -u CLIENT_ID -r REPO [-t TAG]
+                       [-c {us-1,us-2,eu-1}] [--json-report REPORT]
+                       [--log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}]
 
 Crowdstrike - scan your container image.
 
 optional arguments:
   -h, --help            show this help message and exit
   --json-report REPORT  Export JSON report to specified file
+  --log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}
+                        Set the logging level
 
 required arguments:
   -u CLIENT_ID, --clientid CLIENT_ID
                         Falcon OAuth2 API ClientID
   -r REPO, --repo REPO  Container image repository
   -t TAG, --tag TAG     Container image tag
-  -c {us-1,us-2,eu-1}, --cloud {us-1,us-2,eu-1}
+  -c {us-1,us-2,eu-1}, --cloud-region {us-1,us-2,eu-1}
                         CrowdStrike cloud region
 ```
 
-Note that CrowdStrike Falcon OAuth2 credentials may be supplied also by the means of environment variables: FALCON_CLIENT_ID, FALCON_CLIENT_SECRET, and FALCON_CLOUD. Establishing and retrieving OAuth2 API credentials can be performed at https://falcon.crowdstrike.com/support/api-clients-and-keys.
+Note that CrowdStrike Falcon OAuth2 credentials may be supplied also by the means of environment variables: FALCON_CLIENT_ID, FALCON_CLIENT_SECRET, and FALCON_CLOUD_REGION. Establishing and retrieving OAuth2 API credentials can be performed at https://falcon.crowdstrike.com/support/api-clients-and-keys.
 
 ## Example Scan
 This requires your image to exist locally, e.g. run ``docker pull`` prior to executing this script.
 
 ```shell
-$ python cs_scanimage.py --clientid FALCON_CLIENT_ID --repo <repo> --tag <tag> --cloud <cloud>
+$ python cs_scanimage.py --clientid FALCON_CLIENT_ID --repo <repo> --tag <tag> --cloud-region <cloud_regsion>
 
 please enter password to login
 Password:
