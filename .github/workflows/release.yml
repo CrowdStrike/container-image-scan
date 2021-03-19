@@ -1,0 +1,22 @@
+name: Create release archive
+
+on:
+  release:
+    types:
+      - created
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Archive scan files
+        run:
+          tar -cvzf scan.tar.gz LICENSE README.md cs_scanimage.py setup.py
+      - name: Release artifacts to GitHub
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: ./scan.tar.gz
+          allowUpdates: true
+          name: ${{ github.event.release.tag_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
