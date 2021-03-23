@@ -48,7 +48,7 @@ Note that CrowdStrike Falcon OAuth2 credentials may be supplied also by the mean
 This requires your image to exist locally, e.g. run ``docker pull`` prior to executing this script.
 
 ```shell
-$ python cs_scanimage.py --clientid FALCON_CLIENT_ID --repo <repo> --tag <tag> --cloud-region <cloud_regsion>
+$ python cs_scanimage.py --clientid FALCON_CLIENT_ID --repo <repo> --tag <tag> --cloud-region <cloud_region>
 
 please enter password to login
 Password:
@@ -82,3 +82,59 @@ Misconfig = 0
 ScriptFailure = 10
 HighVulnerability and Malware = 3
 ```
+
+## Running the Scan using CICD
+
+1. You can use the [container-image-scan](https://github.com/marketplace/actions/crowdstrike-container-image-scan) GitHub Action in your GitHub workflows. Checkout the action at [https://github.com/marketplace/actions/crowdstrike-container-image-scan](https://github.com/marketplace/actions/crowdstrike-container-image-scan)
+2. You can run the scan as part of your Jenkins pipeline builds.
+   - Requirements:
+     - Jenkins must be able to run Docker commands and connect to the Docker socket
+     - python3 and pip3 must be installed
+   Sample Jenkins pipeline script with configuration options as Jenkins Secrets:
+   ```
+    pipeline {
+        agent any
+        environment {
+            FALCON_CLIENT_ID     = credentials('FALCON_CLIENT_ID')
+            FALCON_CLIENT_SECRET = credentials('FALCON_CLIENT_SECRET')
+            FALCON_CLOUD_REGION  = credentials('FALCON_CLOUD_REGION')
+            CONTAINER_REPO       = credentials('CONTAINER_REPO')
+            CONTAINER_TAG        = credentials('CONTAINER_TAG')
+        }
+        stages {
+            stage('Container Image Scan') {
+                steps {
+                    sh '''
+                    if [ ! -d container-image-scan ] ; then
+                        git clone https://github.com/crowdstrike/container-image-scan
+                    fi
+                    pip3 install docker-py
+                    python3 container-image-scan/cs_scanimage.py
+                    '''
+                }
+            }
+        }
+    }
+   ```
+   Sample Jenkins pipeline script with only `FALCON_CLIENT_SECRET` as a Jenkins Secret:
+   ```
+    pipeline {
+        agent any
+        environment {
+            FALCON_CLIENT_SECRET = credentials('FALCON_CLIENT_SECRET')
+        }
+        stages {
+            stage('Container Image Scan') {
+                steps {
+                    sh '''
+                    if [ ! -d container-image-scan ] ; then
+                        git clone https://github.com/crowdstrike/container-image-scan
+                    fi
+                    pip3 install docker-py
+                    python3 container-image-scan/cs_scanimage.py -u <your_falcon_client_id> -r docker.io/busybox -t latest -c us-1
+                    '''
+                }
+            }
+        }
+    }
+   ```
