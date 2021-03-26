@@ -168,7 +168,7 @@ class ScanReport(dict):
                     cvss_v2 = details.get('cvss_v2_score', {})
                     severity = cvss_v2.get('severity')
                 if severity is None:
-                    severity = details.get('severity', 'UNKNOWM')
+                    severity = details.get('severity', 'UNKNOWN')
                 product = vuln.get('Product', {})
                 affects = product.get('PackageSource', product)
                 if severity.lower() not in ['low', 'medium']:
