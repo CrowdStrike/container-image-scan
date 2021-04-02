@@ -288,12 +288,10 @@ def parse_args():
                           envvar='CONTAINER_REPO',
                           help="Container image repository")
     required.add_argument('-t', '--tag', action=EnvDefault, dest="tag",
-                          default='latest',
                           envvar='CONTAINER_TAG',
                           help="Container image tag")
     required.add_argument('-c', '--cloud-region', action=EnvDefault, dest="cloud",
                           envvar="FALCON_CLOUD_REGION",
-                          default='us-1',
                           choices=['us-1', 'us-2', 'eu-1'],
                           help="CrowdStrike cloud region")
     parser.add_argument('--json-report', dest="report", default=None,
