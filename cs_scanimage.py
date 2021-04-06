@@ -264,9 +264,8 @@ class BearerAuth(requests.auth.AuthBase):
 # See https://stackoverflow.com/questions/10551117/setting-options-from-environment-variables-when-using-argparse/10551190#10551190
 class EnvDefault(argparse.Action):
     def __init__(self, envvar, required=True, default=None, **kwargs):
-        if not default and envvar:
-            if envvar in env:
-                default = env[envvar]
+        if envvar in env:
+            default = env[envvar]
         if required and default:
             required = False
         super(EnvDefault, self).__init__(default=default, required=required,
