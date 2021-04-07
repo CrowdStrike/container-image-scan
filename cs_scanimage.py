@@ -15,11 +15,13 @@ registry_url_map = {
     'us-1': 'container-upload.us-1.crowdstrike.com',
     'us-2': 'container-upload.us-2.crowdstrike.com',
     'eu-1': 'container-upload.eu-1.crowdstrike.com',
+    'us-gov-1': 'container-upload.laggar.gcw.crowdstrike.com',
 }
 auth_url_map = {
     'us-1': 'https://api.crowdstrike.com',
     'us-2': 'https://api.us-2.crowdstrike.com',
     'eu-1': 'https://api.eu-1.crowdstrike.com',
+    'us-gov-1': 'https://api.laggar.gcw.crowdstrike.com',
 }
 
 
