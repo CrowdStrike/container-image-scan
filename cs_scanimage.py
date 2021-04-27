@@ -140,6 +140,7 @@ class ScanReport(dict):
     type_malware = "malware"
     type_secret = "secret"
     type_misconfig = 'misconfiguration'
+    type_cis = 'cis'
 
     def status_code(self):
         vuln_code = self.get_alerts_vuln()
@@ -225,7 +226,7 @@ class ScanReport(dict):
         if detections is not None:
             for detection in detections:
                 try:
-                    if detection['Detection']['Type'].lower() == self.type_misconfig:
+                    if detection['Detection']['Type'].lower() in [self.type_misconfig, self.type_cis]:
                         log.warning("Alert: Misconfiguration found")
                         det_code = ScanStatusCode.Success.value
                         break
