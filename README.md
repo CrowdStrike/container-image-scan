@@ -62,23 +62,23 @@ Password:
 The command above will return output similar to:
 
 ```shell
-running get_alerts_vuln
-Alert: High severity vulnerability found
-running get_alerts_malware
-running get_alerts_malware
-Leaked secrets detected
-running get_alerts_malware
-Alert: Misconfiguration found
+INFO    Downloading Image Scan Report
+INFO    Searching for vulnerabilities in scan report...
+INFO    Searching for leaked secrets in scan report...
+INFO    Searching for malware in scan report...
+INFO    Searching for misconfigurations in scan report...
+WARNING Alert: Misconfiguration found
+INFO    Vulnerability score threshold not met: '0' out of '500'
 ```
 
 ### Example 2:
 
 The script provided was built to score vulnerabilities on a scale show below.
 ```
-critical_score = 1000
-high_score = 200
+critical_score = 2000
+high_score = 500
 medium_score = 100
-low_score = 50
+low_score = 20
 ```
 
 The default value to return a non-zero error code for vulnerabilties is one high vulnerabilty. This can be overridden by providing the `-s` parameters to the script.

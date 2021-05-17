@@ -158,10 +158,10 @@ class ScanReport(dict):
     # return HighVulnerability enum value
     def get_alerts_vuln(self):
         log.info("Searching for vulnerabilities in scan report...")
-        critical_score = 1000
-        high_score = 200
+        critical_score = 2000
+        high_score = 500
         medium_score = 100
-        low_score = 50
+        low_score = 20
         vuln_score = 0
         vulnerabilities = self[self.vuln_str_key_1]
         if vulnerabilities is not None:
@@ -309,7 +309,7 @@ def parse_args():
                           choices=['us-1', 'us-2', 'eu-1'],
                           help="CrowdStrike cloud region")
     required.add_argument('-s', '--score_threshold', action=EnvDefault, dest="score",
-                          default='200',
+                          default='500',
                           envvar='SCORE',
                           help="Vulnerability score threshold")
     parser.add_argument('--json-report', dest="report", default=None,
