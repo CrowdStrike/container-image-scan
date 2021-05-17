@@ -345,7 +345,7 @@ def main():
         f_vuln_score = int(scan_report.get_alerts_vuln())
         f_secrets = int(scan_report.get_alerts_secrets())
         f_malware = int(scan_report.get_alerts_malware())
-        f_misconfig = scan_report.get_alerts_misconfig()
+        #f_misconfig = scan_report.get_alerts_misconfig()
         if  f_secrets == ScanStatusCode.Secrets.value:
              log.error("Exiting: Secrets found in container image")
              sys.exit(ScanStatusCode.Secrets.value)
