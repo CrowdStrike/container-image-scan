@@ -83,7 +83,7 @@ low_score = 20
 
 The default value to return a non-zero error code for vulnerabilties is one high vulnerabilty. This can be overridden by providing the `-s` parameters to the script.
 
-The example below will accomodate vulnerabilities with a sum of `1500`.
+The example below will accomodate vulnerabilities with a sum of 1500.
 
 ```shell
 $ python cs_scanimage.py --clientid FALCON_CLIENT_ID --repo <repo> --tag <tag> \
