@@ -86,7 +86,8 @@ The default value to return a non-zero error code for vulnerabilties is one high
 The example below will accomodate vulnerabilities with a sum of `1500`.
 
 ```shell
-$ python cs_scanimage.py --clientid FALCON_CLIENT_ID --repo <repo> --tag <tag> --cloud-region <cloud_region> -s 1500
+$ python cs_scanimage.py --clientid FALCON_CLIENT_ID --repo <repo> --tag <tag> \
+    --cloud-region <cloud_region> -s 1500
 
 ```
 
