@@ -33,7 +33,7 @@ optional arguments:
   --log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}
                         Set the logging level
   -s SCORE --score_threshold
-                        Vulnerability score threshold default 200
+                        Vulnerability score threshold default 500
 
 required arguments:
   -u CLIENT_ID, --clientid CLIENT_ID
