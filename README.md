@@ -32,6 +32,8 @@ optional arguments:
   --json-report REPORT  Export JSON report to specified file
   --log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}
                         Set the logging level
+  -s SCORE --score_threshold
+                        Vulnerability score threshold default 500
 
 required arguments:
   -u CLIENT_ID, --clientid CLIENT_ID
@@ -44,8 +46,11 @@ required arguments:
 
 Note that CrowdStrike Falcon OAuth2 credentials may be supplied also by the means of environment variables: FALCON_CLIENT_ID, FALCON_CLIENT_SECRET, and FALCON_CLOUD_REGION. Establishing and retrieving OAuth2 API credentials can be performed at https://falcon.crowdstrike.com/support/api-clients-and-keys.
 
-## Example Scan
-This requires your image to exist locally, e.g. run ``docker pull`` prior to executing this script.
+FALCON_CLIENT_ID and FALCON_CLIENT_SECRET can be set via environment variables for automation.
+
+## Example Scans
+
+### Example 1:
 
 ```shell
 $ python cs_scanimage.py --clientid FALCON_CLIENT_ID --repo <repo> --tag <tag> --cloud-region <cloud_region>
@@ -57,13 +62,33 @@ Password:
 The command above will return output similar to:
 
 ```shell
-running get_alerts_vuln
-Alert: High severity vulnerability found
-running get_alerts_malware
-running get_alerts_malware
-Leaked secrets detected
-running get_alerts_malware
-Alert: Misconfiguration found
+INFO    Downloading Image Scan Report
+INFO    Searching for vulnerabilities in scan report...
+INFO    Searching for leaked secrets in scan report...
+INFO    Searching for malware in scan report...
+INFO    Searching for misconfigurations in scan report...
+WARNING Alert: Misconfiguration found
+INFO    Vulnerability score threshold not met: '0' out of '500'
+```
+
+### Example 2:
+
+The script provided was built to score vulnerabilities on a scale show below.
+```
+critical_score = 2000
+high_score = 500
+medium_score = 100
+low_score = 20
+```
+
+The default value to return a non-zero error code for vulnerabilties is one high vulnerabilty. This can be overridden by providing the `-s` parameters to the script.
+
+The example below will accomodate vulnerabilities with a sum of 1500.
+
+```shell
+$ python cs_scanimage.py --clientid FALCON_CLIENT_ID --repo <repo> --tag <tag> \
+    --cloud-region <cloud_region> -s 1500
+
 ```
 
 The ```echo $?``` command can be utilized to review the return code, e.g:
@@ -74,13 +99,12 @@ echo $?
 
 The ```echo $?``` above displays the returned code with the following mappings:
 ```shell
-HighVulnerability = 1
+VulnerabilityScoreExceeded = 1
 Malware = 2
+Secrets = 3
 Success = 0
-Secrets = 0
 Misconfig = 0
 ScriptFailure = 10
-HighVulnerability and Malware = 3
 ```
 
 ## Running the Scan using CICD
