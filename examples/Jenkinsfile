@@ -39,7 +39,7 @@ pipeline {
                     git clone https://github.com/crowdstrike/container-image-scan
                 fi
                 pip3 install docker-py
-                python3 container-image-scan/cs_scanimage.py -s 999999
+                python3 container-image-scan/cs_scanimage.py
                 '''
             }
         }  
