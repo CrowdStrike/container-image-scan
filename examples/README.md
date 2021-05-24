@@ -1,8 +1,23 @@
 # CI Pipeline Examples
 
+
 ## Jenkins Pipelines
 
 ### Requirements
+
+#### Credentials
+
+* Github
+
+Github credentials will need to be added to Jenkins Global Credential Manager as the ID of 'github'. This should be the username and a personal access token added with all 'repo' and child object permissions.
+
+* DockerHub
+
+This example uses DockerHub as the image repository. DockerHub credentials will need to be added to the  Jenkins Global Credential Manager with the ID of 'dockerhub'.
+
+* Falcon API
+
+Falcon API credentials will need to be added as two credentials in the Jenkins Global Credential Manager as Kind 'secret text' with the IDs `FALCON_CLIENT_ID` and `FALCON_CLIENT_SECRET`.
 
 ## Azure Devops Pipeline
 
