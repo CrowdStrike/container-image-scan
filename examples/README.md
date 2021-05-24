@@ -1,6 +1,6 @@
 # CI Pipeline Examples
 
-## Jenkins Pipelines
+## Jenkins Pipeline
 
 ### Requirements
 
