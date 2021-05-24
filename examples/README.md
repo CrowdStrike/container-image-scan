@@ -1,6 +1,5 @@
 # CI Pipeline Examples
 
-
 ## Jenkins Pipelines
 
 ### Requirements
@@ -13,7 +12,7 @@ Github credentials will need to be added to Jenkins Global Credential Manager as
 
 * DockerHub
 
-This example uses DockerHub as the image repository. DockerHub credentials will need to be added to the  Jenkins Global Credential Manager with the ID of 'dockerhub'.
+This example uses DockerHub as the image registry. DockerHub credentials will need to be added to the Jenkins Global Credential Manager with the ID of 'dockerhub'.
 
 * Falcon API
 
