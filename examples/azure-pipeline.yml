@@ -1,0 +1,44 @@
+trigger:
+  branches:
+    include:
+    - "*"
+
+pool:
+  vmImage: ubuntu-latest
+
+# REPLACE <YOUR_IMAGE_REPO> AND <YOUR_IMAGE_TAG> WITH YOUR VALUES
+
+variables:
+- group: cs_falcon_vars
+- name: CONTAINER_REPO
+  value: <YOUR_IMAGE_REPO>
+- name: CONTAINER_TAG
+  value: <YOUR_IMAGE_TAG>
+
+steps:
+
+- task: Docker@2
+  inputs:
+    repository: $(CONTAINER_REPO)
+    tags: $(CONTAINER_TAG)
+    command: 'build'
+    Dockerfile: '**/Dockerfile'
+  displayName: 'Build container image'
+
+- script: |
+    export FALCON_CLIENT_SECRET=$(FALCON_CLIENT_SECRET)
+    export FALCON_CLIENT_ID=$(FALCON_CLIENT_ID)
+    pip3 install docker-py
+    if [ ! -d container-image-scan ] ; then
+      git clone https://github.com/crowdstrike/container-image-scan
+    fi
+    python3 container-image-scan/cs_scanimage.py
+  displayName: 'Scan container-image'
+  
+- task: Docker@2
+  inputs:
+    containerRegistry: 'DockerHub'
+    repository: $(CONTAINER_REPO)
+    tags: $(CONTAINER_TAG)
+    command: 'push'
+  displayName: 'Push container image'
