@@ -11,8 +11,6 @@ pipeline {
         CONTAINER_REPO = '<YOUR_REPO_NAME>'
         CONTAINER_TAG = "${BUILD_NUMBER}"
         FALCON_CLOUD_REGION = 'us-1'
-
-
     }
     
     stages {
