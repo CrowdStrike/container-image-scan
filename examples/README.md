@@ -8,7 +8,7 @@
 
 * Github
 
-Github credentials will need to be added to Jenkins Global Credential Manager as the ID of 'github'. This should be the username and a personal access token added with all 'repo' and child object permissions.
+Github credentials will need to be added to Jenkins Global Credential Manager as the ID of 'github'. This should be the username and a personal access token added with all 'repo' and child object permissions. Personal access tokens can be created at https://github.com/settings/tokens.
 
 * DockerHub
 
