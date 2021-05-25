@@ -16,7 +16,7 @@ This example uses DockerHub as the image registry. DockerHub credentials will ne
 
 * Falcon API
 
-Falcon API credentials will need to be added as two credentials in the Jenkins Global Credential Manager as Kind 'secret text' with the IDs `FALCON_CLIENT_ID` and `FALCON_CLIENT_SECRET`.
+Falcon API credentials will need to be added as two credentials in the Jenkins Global Credential Manager as Kind 'secret text' with the IDs `FALCON_CLIENT_ID` and `FALCON_CLIENT_SECRET`. OAuth2 API client and keys can be created at https://falcon.crowdstrike.com/support/api-clients-and-keys.
 
 ## Azure Devops Pipeline
 
