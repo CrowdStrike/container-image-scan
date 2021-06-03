@@ -6,23 +6,13 @@ pipeline {
         // Replace the <tags> below with your values.
         FALCON_CLIENT_SECRET = credentials('FALCON_CLIENT_SECRET')
         FALCON_CLIENT_ID = credentials('FALCON_CLIENT_ID')
-        GITHUB_URL = '<YOUR_GITHUB_URL>'
         BUILD_DIR = '.'
-        CONTAINER_REPO = '<YOUR_REPO_NAME>'
+        CONTAINER_REPO = '<repo_name>'
         CONTAINER_TAG = "${BUILD_NUMBER}"
-        FALCON_CLOUD_REGION = 'us-1'
+        FALCON_CLOUD_REGION = 'us-2'
     }
     
     stages {
-        
-        stage('CloneRepo') {
-            // Get some code from a GitHub repository
-            steps {
-                git branch: 'main', 
-                credentialsId: 'github', 
-                url: "$GITHUB_URL"
-            }
-        }
         stage('BuildImage') {
             // Build the docker image using the docker file in the current directory
             steps{

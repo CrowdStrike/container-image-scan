@@ -1,8 +1,16 @@
 # CI Pipeline Examples
 
+The pipeline example can use the Dockerfile inside this directory for build purposes.
+
+The `<repo_name>` tag listed in the pipeline examples file will need to be updated with a repo that is accessible via the docker login credentials outlined in the below example specific instructions.
+
+These pipeline examples were built to showcase the `docker build` with a subsequent image scan handled by the CrowdStrike Image Scan API.
+
 ## Jenkins Pipeline
 
 ### Requirements
+
+* The Jenkinsfile provided may be used inside a pipeline that specifies
 
 #### Credentials
 
@@ -37,3 +45,10 @@ Replace <YOUR_IMAGE_REPO> and <YOUR_IMAGE_TAG> in the azure-pipeline.yml with yo
 #### Service Connection
 
 This also uses an authenticated docker registry [service connection](https://docs.microsoft.com/en-us/azure/devops/pipelines/library/service-endpoints?view=azure-devops&tabs=yaml) on the project named 'DockerHub'
+
+## Github Actions
+
+### Requirements
+
+#### Secret Variables
+

@@ -11,9 +11,11 @@ pool:
 variables:
 - group: cs_falcon_vars
 - name: CONTAINER_REPO
-  value: <YOUR_IMAGE_REPO>
+  value: '<repo_name>'
 - name: CONTAINER_TAG
-  value: <YOUR_IMAGE_TAG>
+  value: $(Build.BuildId)
+- name: FALCON_CLOUD_REGION
+  value: 'us-2'
 
 steps:
 

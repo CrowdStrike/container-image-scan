@@ -1,0 +1,53 @@
+name: Scan Container Images
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+    
+env:
+  FALCON_CLIENT_SECRET: "${{ secrets.FALCON_CLIENT_SECRET }}"
+  FALCON_CLIENT_ID: "${{ secrets.FALCON_CLIENT_ID }}"
+  FALCON_CLOUD_REGION: 'us-2'
+  CONTAINER_REPO: '<repo_name>'
+  CONTAINER_TAG: "${{ github.run_id }}"
+
+jobs:
+
+  build-scan:
+    runs-on: ubuntu-latest
+        
+    steps:
+    
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Docker Login
+      uses: docker/login-action@v1.9.0
+      with:
+        username: "${{ secrets.DOCKER_USER }}"
+        password: "${{ secrets.DOCKER_PASSWORD }}"
+
+    - name: Build and push Docker images
+      uses: docker/build-push-action@v2.4.0
+      with:
+        context: 'web/'
+        push: false
+        tags: "${{ env.CONTAINER_REPO }}:${{ env.CONTAINER_TAG }}"
+    
+    - name: Scan Container Image from Repository
+      uses: mccbryan3/container-image-scan-action@v0.4
+      id: image-scan
+      with:
+         container_repository: "${{ env.CONTAINER_REPOSITORY }}"
+         container_tag: "${{ env.CONTAINER_TAG }}"
+         crowdstrike_region: "${{ env.FALCON_CLOUD_REGION }}"
+         crowdstrike_score: 99999
+         
+    - name: Push docker image
+      run: docker push "${{ env.CONTAINER_REPO }}:${{ env.CONTAINER_TAG }}"
+          
+    - name: Do something if high vulns found
+      run: echo "VULNS FOUND - EXITCODE - ${{ steps.image-scan.outputs.exit-code }}"
+      if:  always() && steps.image-scan.outputs.exit-code == 1
