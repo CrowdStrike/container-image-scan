@@ -24,6 +24,7 @@ $ python3 cs_scanimage.py --help
 usage: cs_scanimage.py [-h] -u CLIENT_ID -r REPO [-t TAG]
                        [-c {us-1,us-2,eu-1}] [--json-report REPORT]
                        [--log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}]
+                       [ -R RETRY_COUNT ]
 
 Crowdstrike - scan your container image.
 
@@ -34,6 +35,8 @@ optional arguments:
                         Set the logging level
   -s SCORE --score_threshold
                         Vulnerability score threshold default 500
+  -R RETRY_COUNT --retry_count
+                        Retry fetching scan report default 10
 
 required arguments:
   -u CLIENT_ID, --clientid CLIENT_ID
@@ -92,7 +95,7 @@ $ python cs_scanimage.py --clientid FALCON_CLIENT_ID --repo <repo> --tag <tag> \
 ```
 
 The ```echo $?``` command can be utilized to review the return code, e.g:
-```shell 
+```shell
 echo $?
 1
 ```
