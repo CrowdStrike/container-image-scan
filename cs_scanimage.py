@@ -323,6 +323,7 @@ def parse_args():
     required.add_argument('-R', '--retry_count', action=EnvDefault, dest="retry_count",
                           default='10',
                           envvar='RETRY_COUNT',
+                          type=int,
                           help="Scan report retry count")
     args = parser.parse_args()
     logging.getLogger().setLevel(args.log_level)
