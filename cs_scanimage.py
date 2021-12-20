@@ -107,12 +107,12 @@ class ScanImage(Exception):
             raise APIError('POST ' + post_url + ' {}'.format(resp.status_code))
 
     # Step 5: poll and get scanreport for specified amount of retries
-    def get_scanreport(self, token):
+    def get_scanreport(self, token, retry_count):
         log.info("Downloading Image Scan Report")
         scanreport_endpoint = "/reports?"
         server_url = "https://%s" % (self.server_domain)
         scanreport_url = "%s%s" % (server_url, scanreport_endpoint)
-        retry_count = 10
+        retry_count = retry_count
         sleep_seconds = 10
         get_url = "%srepository=%s&tag=%s" % (
             scanreport_url, self.repo, self.tag)
@@ -320,15 +320,19 @@ def parse_args():
                         choices=['DEBUG', 'INFO',
                                  'WARNING', 'ERROR', 'CRITICAL'],
                         help="Set the logging level")
+    required.add_argument('-R', '--retry_count', action=EnvDefault, dest="retry_count",
+                          default='10',
+                          envvar='RETRY_COUNT',
+                          help="Scan report retry count")
     args = parser.parse_args()
     logging.getLogger().setLevel(args.log_level)
 
-    return args.client_id, args.repo, args.tag, args.cloud, args.score, args.report
+    return args.client_id, args.repo, args.tag, args.cloud, args.score, args.report, args.retry_count
 
 
 def main():
     try:
-        client_id, repo, tag, cloud, score, json_report = parse_args()
+        client_id, repo, tag, cloud, score, json_report, retry_count = parse_args()
         client = docker.from_env()
         client_secret = env.get('FALCON_CLIENT_SECRET')
         if client_secret is None:
@@ -341,7 +345,7 @@ def main():
         scan_image.docker_push()
         token = scan_image.get_api_token()
 
-        scan_report = scan_image.get_scanreport(token)
+        scan_report = scan_image.get_scanreport(token, retry_count)
         if json_report:
             scan_report.export(json_report)
         f_vuln_score = int(scan_report.get_alerts_vuln())
