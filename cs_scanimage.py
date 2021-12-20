@@ -9,6 +9,7 @@ from os import environ as env
 from enum import Enum
 import time
 import getpass
+import os
 
 
 registry_url_map = {
@@ -323,6 +324,7 @@ def parse_args():
     required.add_argument('-R', '--retry_count', action=EnvDefault, dest="retry_count",
                           default='10',
                           envvar='RETRY_COUNT',
+                          type=int,
                           help="Scan report retry count")
     args = parser.parse_args()
     logging.getLogger().setLevel(args.log_level)
@@ -333,6 +335,10 @@ def parse_args():
 def main():
     try:
         client_id, repo, tag, cloud, score, json_report, retry_count = parse_args()
+        print(f"retry count is {retry_count}")
+        print(f"retry count is {type(retry_count)}")
+        os.exit(1)
+
         client = docker.from_env()
         client_secret = env.get('FALCON_CLIENT_SECRET')
         if client_secret is None:
