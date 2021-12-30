@@ -112,7 +112,6 @@ class ScanImage(Exception):
         scanreport_endpoint = "/reports?"
         server_url = "https://%s" % (self.server_domain)
         scanreport_url = "%s%s" % (server_url, scanreport_endpoint)
-        retry_count = retry_count
         sleep_seconds = 10
         get_url = "%srepository=%s&tag=%s" % (
             scanreport_url, self.repo, self.tag)
