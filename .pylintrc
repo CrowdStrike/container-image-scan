@@ -138,7 +138,19 @@ disable=print-statement,
         xreadlines-attribute,
         deprecated-sys-function,
         exception-escape,
-        comprehension-escape
+        comprehension-escape,
+        import-error,  # start this repos customization of pylint rules
+        consider-using-f-string,
+        invalid-name,
+        missing-module-docstring,
+        super-with-arguments,
+        too-many-arguments,
+        too-many-locals,
+        too-few-public-methods,
+        super-init-not-called,
+        missing-function-docstring,
+        missing-class-docstring
+
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option
