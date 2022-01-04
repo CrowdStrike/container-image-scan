@@ -1,15 +1,14 @@
 from __future__ import print_function
 import argparse
-import docker
 import json
 import logging
-import requests
 import sys
 from os import environ as env
 from enum import Enum
 import time
 import getpass
-
+import requests
+import docker
 
 registry_url_map = {
     'us-1': 'container-upload.us-1.crowdstrike.com',
@@ -55,10 +54,10 @@ class ScanImage(Exception):
         container_image = ''.join((''.join(img["RepoTags"])
                                    for img in dock_api_client.images(name=local_tag)))
         if not container_image:
-            log.info("Pulling container image: '%s'" % (local_tag))
+            log.info("Pulling container image: '%s'", local_tag)
             dock_api_client.pull(self.repo, self.tag)
 
-        log.info("Tagging '%s' to '%s:%s'" % (local_tag, url_tag, self.tag))
+        log.info("Tagging '%s' to '%s:%s'", local_tag, url_tag, self.tag)
         dock_api_client.tag(local_tag, url_tag, self.tag, force=True)
 
     # Step 2: login using the credentials supplied
@@ -101,10 +100,10 @@ class ScanImage(Exception):
             "Content-Type": "application/x-www-form-urlencoded"
         }
         resp = requests.post(post_url, data=payload, headers=headers)
-        if resp.status_code == 200 or resp.status_code == 201:
+        if resp.status_code in (200, 201):
             return resp.json()["access_token"]
-        else:
-            raise APIError('POST ' + post_url + ' {}'.format(resp.status_code))
+
+        raise APIError('POST ' + post_url + ' {}'.format(resp.status_code))
 
     # Step 5: poll and get scanreport for specified amount of retries
     def get_scanreport(self, token, retry_count):
@@ -137,7 +136,7 @@ class ScanReport(dict):
 
     severity_high = "high"
     type_malware = "malware"
-    type_secret = "secret"
+    type_secret = "secret"  # nosec
     type_misconfig = 'misconfiguration'
     type_cis = 'cis'
 
@@ -146,10 +145,10 @@ class ScanReport(dict):
         mal_code = self.get_alerts_malware()
         sec_code = self.get_alerts_secrets()
         mcfg_code = self.get_alerts_misconfig()
-        return(vuln_code | mal_code | sec_code | mcfg_code)
+        return vuln_code | mal_code | sec_code | mcfg_code
 
     def export(self, filename):
-        with open(filename, 'w') as f:
+        with open(filename, 'w', encoding="utf-8") as f:
             f.write(json.dumps(self, indent=4))
 
     # Step 6: pass the vulnerabilities from scan report,
@@ -371,7 +370,7 @@ def main():
     except APIError:
         log.exception("Unable to scan")
         sys.exit(ScanStatusCode.ScriptFailure.value)
-    except Exception:
+    except Exception:  # pylint: disable=broad-except
         log.exception("Unknown error")
         sys.exit(ScanStatusCode.ScriptFailure.value)
 
