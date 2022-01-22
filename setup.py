@@ -11,7 +11,8 @@ setup(
     name="container-image-scan",
     version="0.0.1",
     author="CrowdStrike",
-    description="Script to scan a container and return response codes indicating pass/fail",
+    description=
+    "Script to scan a container and return response codes indicating pass/fail",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/crowdstrike/container-image-scan",
@@ -19,10 +20,7 @@ setup(
     package_dir={"": "."},
     py_modules=[splitext(basename(path))[0] for path in glob("*.py")],
     include_package_data=True,
-    install_requires=[
-        'docker',
-        'requests'
-    ],
+    install_requires=['docker', 'requests'],
     extras_require={
         'devel': [
             'flake8',
