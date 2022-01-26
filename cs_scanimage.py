@@ -47,7 +47,7 @@ class ScanImage(Exception):
         url_tag = "%s/%s" % (self.server_domain, self.repo)
 
         try:
-            dock_api_client = docker.APIClient()
+            dock_api_client = docker.APIClient(**docker.utils.kwargs_from_env())
         except AttributeError:
             dock_api_client = docker.Client()
 
