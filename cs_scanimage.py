@@ -312,12 +312,12 @@ def parse_args():
                           default='500',
                           envvar='SCORE',
                           help="Vulnerability score threshold")
-    parser.add_argument('--json-report', action=EnvDefault, dest="report", 
+    parser.add_argument('--json-report', action=EnvDefault, dest="report",
                         envvar="JSON_REPORT",
                         default=None,
                         required=False,
                         help='Export JSON report to specified file')
-    parser.add_argument('--log-level', action=EnvDefault, dest='log_level', 
+    parser.add_argument('--log-level', action=EnvDefault, dest='log_level',
                         envvar="LOG_LEVEL",
                         default='INFO',
                         required=False,
