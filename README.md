@@ -3,7 +3,7 @@
 This script will scan a container and return response codes indicating pass/fail status.
 
 Specifically, this script:
-1. Tags your image using ``docker tag``
+1. Tags your image using ``docker tag`` or ``podman tag``
 2. Authenticates to CrowdStrike using your [OAuth2 API keys](https://falcon.crowdstrike.com/support/api-clients-and-keys)
 3. Pushes your image to CrowdStrike for evaluation using ``docker push``, after which CrowdStrike performs an Image Scan
 4. Parses returned scan report, generating return error codes as needed
@@ -12,10 +12,20 @@ All output is sent to stdout/stderr.
 
 
 ## Prerequisites
-This sample/demo script requires the [Docker Engine API python library](https://pypi.org/project/docker/) and the [``requests`` HTTP library](https://pypi.org/project/requests/). These can be installed via ``pip``:
+This sample/demo script requires the [Docker Engine API python library](https://pypi.org/project/docker/) or the [Bindings for Podman RESTful API](https://pypi.org/project/podman/) and the [``requests`` HTTP library](https://pypi.org/project/requests/). These can be installed via ``pip``:
 
+### Docker Python Prerequisites
 ```shell
 $ pip3 install docker requests
+```
+
+### Podman Python Prerequisites
+```shell
+$ pip3 install podman requests
+```
+Once the Podman python dependencies are installed, configure the URI path for the service.
+```shell
+$ export CONTAINER_HOST="unix:///var/run/podman/podman.sock"
 ```
 
 ## Usage

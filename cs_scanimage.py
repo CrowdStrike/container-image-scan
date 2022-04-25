@@ -5,10 +5,15 @@ import logging
 import sys
 from os import environ as env
 from enum import Enum
+import subprocess  # nosec
 import time
 import getpass
 import requests
-import docker
+
+try:
+    import docker
+except ModuleNotFoundError:
+    import podman as docker
 
 registry_url_map = {
     'us-1': 'container-upload.us-1.crowdstrike.com',
@@ -41,35 +46,44 @@ class ScanImage(Exception):
         self.server_domain = registry_url_map[cloud]
         self.auth_url = "%s/oauth2/token" % (auth_url_map[cloud])
 
-    # Step 1: perform docker tag to the registry corresponding to the cloud entered
-    def docker_tag(self):
+    # Step 1: perform container tag to the registry corresponding to the cloud entered
+    def container_tag(self):
         local_tag = "%s:%s" % (self.repo, self.tag)
         url_tag = "%s/%s" % (self.server_domain, self.repo)
 
-        try:
-            dock_api_client = docker.APIClient(**docker.utils.kwargs_from_env())
-        except AttributeError:
-            dock_api_client = docker.Client()
+        container_image = ''.join((''.join(img.attrs["RepoTags"])
+                                   for img in self.client.images.list(filters={"reference": local_tag})))
 
-        container_image = ''.join((''.join(img["RepoTags"])
-                                   for img in dock_api_client.images(name=local_tag)))
         if not container_image:
             log.info("Pulling container image: '%s'", local_tag)
-            dock_api_client.pull(self.repo, self.tag)
+            self.client.images.pull(local_tag)
 
         log.info("Tagging '%s' to '%s:%s'", local_tag, url_tag, self.tag)
-        dock_api_client.tag(local_tag, url_tag, self.tag, force=True)
+        self.client.images.get(local_tag).tag(url_tag, self.tag, force=True)
 
     # Step 2: login using the credentials supplied
-    def docker_login(self):
-        log.info("Performing docker login to CrowdStrike Image Assessment Service")
-        self.client.login(username=self.client_id,
-                          password=self.client_secret, registry=self.server_domain)
+    def container_login(self):
+        log.info("Performing login to CrowdStrike Image Assessment Service")
+        login = self.client.login(username=self.client_id,
+                                  password=self.client_secret, registry=self.server_domain, reauth=True)
+        try:
+            log.info(login["Status"])
+        except TypeError:
+            command = ["/usr/bin/podman", "login"]
+            command.extend(['--username', self.client_id])
+            command.extend(['--password', self.client_secret])
+            command.append(self.server_domain)
+            result = subprocess.run(command, shell=False, encoding="utf-8",  # nosec
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+            if result.returncode != 0:
+                raise Exception(result.stderr.strip()) from None
 
-    # Step 3: perform docker push using the repo and tag supplied
-    def docker_push(self):
+            log.info(result.stdout.strip())
+
+    # Step 3: perform container push using the repo and tag supplied
+    def container_push(self):
         image_str = "%s/%s:%s" % (self.server_domain, self.repo, self.tag)
-        log.info("Performing docker push to %s", image_str)
+        log.info("Performing container push to %s", image_str)
 
         try:
             image_push = self.client.images.push(
@@ -82,7 +96,7 @@ class ScanImage(Exception):
                 raise APIError('docker_push ' + line['error'])
 
             if 'status' in line and line['status'] == 'Pushing':
-                print("Pushing {}".format(line['progress']), end='\r')
+                print("Pushing {}".format([line.get(key) for key in ['progress', 'progressDetails']]), end='\r')
             elif 'status' in line:
                 log.info("Docker: %s", line['status'])
             else:
@@ -345,9 +359,9 @@ def main():
             client_secret = getpass.getpass()
         scan_image = ScanImage(client_id, client_secret,
                                repo, tag, client, cloud)
-        scan_image.docker_tag()
-        scan_image.docker_login()
-        scan_image.docker_push()
+        scan_image.container_tag()
+        scan_image.container_login()
+        scan_image.container_push()
         token = scan_image.get_api_token()
 
         scan_report = scan_image.get_scanreport(token, retry_count)
