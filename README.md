@@ -3,32 +3,46 @@
 This script will scan a container and return response codes indicating pass/fail status.
 
 Specifically, this script:
-1. Tags your image using ``docker tag`` or ``podman tag``
+
+1. Tags your image using `docker tag` or `podman tag`
 2. Authenticates to CrowdStrike using your [OAuth2 API keys](https://falcon.crowdstrike.com/support/api-clients-and-keys)
-3. Pushes your image to CrowdStrike for evaluation using ``docker push``, after which CrowdStrike performs an Image Scan
+3. Pushes your image to CrowdStrike for evaluation using `docker push`, after which CrowdStrike performs an Image Scan
 4. Parses returned scan report, generating return error codes as needed
 
 All output is sent to stdout/stderr.
 
-
 ## Prerequisites
-This sample/demo script requires the [Docker Engine API python library](https://pypi.org/project/docker/) or the [Bindings for Podman RESTful API](https://pypi.org/project/podman/) and the [``requests`` HTTP library](https://pypi.org/project/requests/). These can be installed via ``pip``:
+
+This sample/demo script requires the [Docker Engine API python library](https://pypi.org/project/docker/) or the [Bindings for Podman RESTful API](https://pypi.org/project/podman/) and the [`requests` HTTP library](https://pypi.org/project/requests/). These can be installed via `pip`:
+
+### OAuth2 API Key Prerequisites
+
+A CrowdStrike [OAuth2 API keys](https://falcon.crowdstrike.com/support/api-clients-and-keys) with the following permissions is required:
+
+| Permission             | Needed scopes      |
+| ---------------------- | ------------------ |
+| Falcon Container Image | `read` and `write` |
 
 ### Docker Python Prerequisites
+
 ```shell
 $ pip3 install docker requests
 ```
 
 ### Podman Python Prerequisites
+
 ```shell
 $ pip3 install podman requests
 ```
+
 Once the Podman python dependencies are installed, configure the URI path for the service.
+
 ```shell
 $ export CONTAINER_HOST="unix:///var/run/podman/podman.sock"
 ```
 
 ## Usage
+
 ```shell
 $ python3 cs_scanimage.py --help
 usage: cs_scanimage.py [-h] -u CLIENT_ID -r REPO [-t TAG]
@@ -87,6 +101,7 @@ INFO    Vulnerability score threshold not met: '0' out of '500'
 ### Example 2:
 
 The script provided was built to score vulnerabilities on a scale show below.
+
 ```
 critical_score = 2000
 high_score = 500
@@ -104,13 +119,15 @@ $ python cs_scanimage.py --clientid FALCON_CLIENT_ID --repo <repo> --tag <tag> \
 
 ```
 
-The ```echo $?``` command can be utilized to review the return code, e.g:
+The `echo $?` command can be utilized to review the return code, e.g:
+
 ```shell
 echo $?
 1
 ```
 
-The ```echo $?``` above displays the returned code with the following mappings:
+The `echo $?` above displays the returned code with the following mappings:
+
 ```shell
 VulnerabilityScoreExceeded = 1
 Malware = 2
@@ -122,8 +139,6 @@ ScriptFailure = 10
 
 ## Running the Scan using CICD
 
+- You can use the [container-image-scan](https://github.com/marketplace/actions/crowdstrike-container-image-scan) GitHub Action in your GitHub workflows. Checkout the action at [https://github.com/marketplace/actions/crowdstrike-container-image-scan](https://github.com/marketplace/actions/crowdstrike-container-image-scan)
 
-  * You can use the [container-image-scan](https://github.com/marketplace/actions/crowdstrike-container-image-scan) GitHub Action in your GitHub workflows. Checkout the action at [https://github.com/marketplace/actions/crowdstrike-container-image-scan](https://github.com/marketplace/actions/crowdstrike-container-image-scan)
-
-  * Pipeline examples, including the GitHub Action, can be found at the CrowdStrike [image-scan-example](https://github.com/CrowdStrike/image-scan-example) repositotry.
-
+- Pipeline examples, including the GitHub Action, can be found at the CrowdStrike [image-scan-example](https://github.com/CrowdStrike/image-scan-example) repositotry.
