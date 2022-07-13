@@ -180,9 +180,8 @@ class ScanReport(dict):
             for vulnerability in vulnerabilities:
                 vuln = vulnerability['Vulnerability']
                 cve = vuln.get('CVEID', 'CVE-unknown')
-                details = vuln.get('Details', {})
+                details = vuln.get('Details')
 
-                # verify details is a dict
                 if isinstance(details, dict):
                     cvss_v3 = details.get('cvss_v3_score', {})
                     severity = cvss_v3.get('severity')
