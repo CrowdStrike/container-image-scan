@@ -181,13 +181,18 @@ class ScanReport(dict):
                 vuln = vulnerability['Vulnerability']
                 cve = vuln.get('CVEID', 'CVE-unknown')
                 details = vuln.get('Details', {})
-                cvss_v3 = details.get('cvss_v3_score', {})
-                severity = cvss_v3.get('severity')
-                if severity is None:
-                    cvss_v2 = details.get('cvss_v2_score', {})
-                    severity = cvss_v2.get('severity')
-                if severity is None:
-                    severity = details.get('severity', 'UNKNOWN')
+
+                if details is not None:
+                    cvss_v3 = details.get('cvss_v3_score', {})
+                    severity = cvss_v3.get('severity')
+                    if severity is None:
+                        cvss_v2 = details.get('cvss_v2_score', {})
+                        severity = cvss_v2.get('severity')
+                    if severity is None:
+                        severity = details.get('severity', '')
+                else:
+                    severity = ''
+
                 product = vuln.get('Product', {})
                 affects = product.get('PackageSource', product)
                 log.warning(
