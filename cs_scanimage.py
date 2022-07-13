@@ -182,7 +182,8 @@ class ScanReport(dict):
                 cve = vuln.get('CVEID', 'CVE-unknown')
                 details = vuln.get('Details', {})
 
-                if details is not None:
+                # verify details is a dict
+                if isinstance(details, dict):
                     cvss_v3 = details.get('cvss_v3_score', {})
                     severity = cvss_v3.get('severity')
                     if severity is None:
