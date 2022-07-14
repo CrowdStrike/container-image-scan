@@ -183,13 +183,13 @@ class ScanReport(dict):
                 details = vuln.get('Details')
 
                 if isinstance(details, dict):
-                    cvss_v3 = details.get('cvss_v3_score', {})
-                    severity = cvss_v3.get('severity')
+                    severity = details.get('severity')
+                    if severity is None:
+                        cvss_v3 = details.get('cvss_v3_score', {})
+                        severity = cvss_v3.get('severity')
                     if severity is None:
                         cvss_v2 = details.get('cvss_v2_score', {})
-                        severity = cvss_v2.get('severity')
-                    if severity is None:
-                        severity = details.get('severity', '')
+                        severity = cvss_v2.get('severity', '')
                 else:
                     severity = ''
 
