@@ -1,3 +1,40 @@
+#!/usr/bin/env python3
+r"""
+MM''''''YMM                     dP            oo
+M' .mmm. `M                     88
+M  MMMMMooM .d8888b. 88d888b. d8888P .d8888b. dP 88d888b. .d8888b. 88d888b.
+M  MMMMMMMM 88'  `88 88'  `88   88   88'  `88 88 88'  `88 88ooood8 88'  `88
+M. `MMM' .M 88.  .88 88    88   88   88.  .88 88 88    88 88.  ... 88
+MM.     .dM `88888P' dP    dP   dP   `88888P8 dP dP    dP `88888P' dP
+MMMMMMMMMMM
+
+            M''M
+            M  M
+            M  M 88d8b.d8b. .d8888b. .d8888b. .d8888b.
+            M  M 88'`88'`88 88'  `88 88'  `88 88ooood8
+            M  M 88  88  88 88.  .88 88.  .88 88.  ...
+            M  M dP  dP  dP `88888P8 `8888P88 `88888P'
+            MMMM                          .88
+                                       d8888P
+
+                    MP''''''`MM
+                    M  mmmmm..M
+                    M.      `YM .d8888b. .d8888b. 88d888b.
+                    MMMMMMM.  M 88'  `"" 88'  `88 88'  `88
+                    M. .MMM'  M 88.  ... 88.  .88 88    88
+                    Mb.     .dM `88888P' `88888P8 dP    dP
+                    MMMMMMMMMMM
+
+            |)
+            |/\_|  |
+             \/  \/|/
+                  (|
+
+                 __
+                / ()  ,_   _           _|   ()_|_  ,_  o |)   _
+               |     /  | / \_|  |  |_/ |   /\ |  /  | | |/) |/
+                \___/   |/\_/  \/ \/  \/|_//(_)|_/   |/|/| \/|_/
+"""
 from __future__ import print_function
 import argparse
 import json
@@ -8,26 +45,12 @@ from enum import Enum
 import subprocess  # nosec
 import time
 import getpass
-import requests
+from falconpy import FalconContainer, ContainerBaseURL
 
 try:
     import docker
 except ModuleNotFoundError:
     import podman as docker
-
-registry_url_map = {
-    'us-1': 'container-upload.us-1.crowdstrike.com',
-    'us-2': 'container-upload.us-2.crowdstrike.com',
-    'eu-1': 'container-upload.eu-1.crowdstrike.com',
-    'us-gov-1': 'container-upload.laggar.gcw.crowdstrike.com',
-}
-auth_url_map = {
-    'us-1': 'https://api.crowdstrike.com',
-    'us-2': 'https://api.us-2.crowdstrike.com',
-    'eu-1': 'https://api.eu-1.crowdstrike.com',
-    'us-gov-1': 'https://api.laggar.gcw.crowdstrike.com',
-}
-
 
 logging.basicConfig(stream=sys.stdout, format='%(levelname)-8s%(message)s')
 log = logging.getLogger('cs_scanimage')
@@ -43,8 +66,8 @@ class ScanImage(Exception):
         self.repo = repo
         self.tag = tag
         self.client = client
-        self.server_domain = registry_url_map[cloud]
-        self.auth_url = "%s/oauth2/token" % (auth_url_map[cloud])
+        self.falcon = FalconContainer(client_id=client_id, client_secret=client_secret, base_url=cloud)
+        self.server_domain = ContainerBaseURL[cloud.replace("-", "").upper()].value
 
     # Step 1: perform container tag to the registry corresponding to the cloud entered
     def container_tag(self):
@@ -102,44 +125,21 @@ class ScanImage(Exception):
             else:
                 log.debug(line)
 
-    # Step 4: get the api token used for getting the scan report
-    def get_api_token(self):
-        log.info("Authenticating with CrowdStrike Falcon API")
-        post_url = self.auth_url
-        payload = {
-            "client_id": self.client_id,
-            "client_secret": self.client_secret
-        }
-        headers = {
-            "Content-Type": "application/x-www-form-urlencoded"
-        }
-        resp = requests.post(post_url, data=payload, headers=headers)
-        if resp.status_code in (200, 201):
-            return resp.json()["access_token"]
-
-        raise APIError('POST ' + post_url + ' {}'.format(resp.status_code))
-
-    # Step 5: poll and get scanreport for specified amount of retries
-    def get_scanreport(self, token, retry_count):
+    # Step 4: poll and get scanreport for specified amount of retries
+    def get_scanreport(self, retry_count):
         log.info("Downloading Image Scan Report")
-        scanreport_endpoint = "/reports?"
-        server_url = "https://%s" % (self.server_domain)
-        scanreport_url = "%s%s" % (server_url, scanreport_endpoint)
         sleep_seconds = 10
-        get_url = "%srepository=%s&tag=%s" % (
-            scanreport_url, self.repo, self.tag)
-
         for count in range(retry_count):
             time.sleep(sleep_seconds)
             log.debug("retry count %s", count)
-            resp = requests.get(get_url, auth=BearerAuth(token))
-            if resp.status_code != 200:
+            resp = self.falcon.get_assessment(repository=self.repo, tag=self.tag)
+            if resp["status_code"] != 200:
                 log.info(
                     "Scan report is not ready yet, retrying in %s seconds", sleep_seconds)
             else:
-                return ScanReport(resp.json())
+                return ScanReport(resp["body"])
         log.error("Retries exhausted")
-        raise APIError('GET ' + get_url + ' {}'.format(resp.status_code))
+        raise APIError('GET {}'.format(resp.status_code))
 
 
 class ScanReport(dict):
@@ -165,7 +165,7 @@ class ScanReport(dict):
         with open(filename, 'w', encoding="utf-8") as f:
             f.write(json.dumps(self, indent=4))
 
-    # Step 6: pass the vulnerabilities from scan report,
+    # Step 5: pass the vulnerabilities from scan report,
     # loop through and find high severity vulns
     # return HighVulnerability enum value
     def get_alerts_vuln(self):
@@ -207,7 +207,7 @@ class ScanReport(dict):
                     vuln_score = vuln_score + critical_score
         return vuln_score
 
-    # Step 7: pass the detections from scan report,
+    # Step 6: pass the detections from scan report,
     # loop through and find if detection type is malware
     # return Malware enum value
     def get_alerts_malware(self):
@@ -225,7 +225,7 @@ class ScanReport(dict):
                     continue
         return det_code
 
-    # Step 8: pass the detections from scan report,
+    # Step 7: pass the detections from scan report,
     # loop through and find if detection type is secret
     # return Success enum value
     def get_alerts_secrets(self):
@@ -243,7 +243,7 @@ class ScanReport(dict):
                     continue
         return det_code
 
-    # Step 9: pass the detections from scan report,
+    # Step 8: pass the detections from scan report,
     # loop through and find if detection type is misconfig
     # return Success enum value
     def get_alerts_misconfig(self):
@@ -283,15 +283,6 @@ class APIError(Exception):
         return "APIError: status={}".format(self.status)
 
 
-class BearerAuth(requests.auth.AuthBase):
-    def __init__(self, token):
-        self.token = token
-
-    def __call__(self, r):
-        r.headers["authorization"] = "Bearer " + self.token
-        return r
-
-
 # The following class was authored by Russell Heilling
 # See https://stackoverflow.com/questions/10551117/setting-options-from-environment-variables-when-using-argparse/10551190#10551190
 class EnvDefault(argparse.Action):
@@ -309,8 +300,9 @@ class EnvDefault(argparse.Action):
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(
-        description='Crowdstrike - scan your container image.')
+    parser = argparse.ArgumentParser(description=__doc__,
+                                     formatter_class=argparse.RawTextHelpFormatter
+                                     )
     required = parser.add_argument_group('required arguments')
     required.add_argument('-u', '--clientid', action=EnvDefault,
                           dest="client_id", envvar='FALCON_CLIENT_ID',
@@ -325,7 +317,7 @@ def parse_args():
     required.add_argument('-c', '--cloud-region', action=EnvDefault, dest="cloud",
                           envvar="FALCON_CLOUD_REGION",
                           default='us-1',
-                          choices=['us-1', 'us-2', 'eu-1'],
+                          choices=['us-1', 'us-2', 'eu-1', 'us-gov-1'],
                           help="CrowdStrike cloud region")
     required.add_argument('-s', '--score_threshold', action=EnvDefault, dest="score",
                           default='500',
@@ -367,9 +359,8 @@ def main():
         scan_image.container_tag()
         scan_image.container_login()
         scan_image.container_push()
-        token = scan_image.get_api_token()
 
-        scan_report = scan_image.get_scanreport(token, retry_count)
+        scan_report = scan_image.get_scanreport(retry_count)
         if json_report:
             scan_report.export(json_report)
         f_vuln_score = int(scan_report.get_alerts_vuln())
