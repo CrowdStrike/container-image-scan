@@ -26,13 +26,13 @@ A CrowdStrike [OAuth2 API keys](https://falcon.crowdstrike.com/support/api-clien
 ### Docker Python Prerequisites
 
 ```shell
-$ pip3 install docker requests
+$ pip3 install docker crowdstrike-falconpy
 ```
 
 ### Podman Python Prerequisites
 
 ```shell
-$ pip3 install podman requests
+$ pip3 install podman crowdstrike-falconpy
 ```
 
 Once the Podman python dependencies are installed, configure the URI path for the service.
