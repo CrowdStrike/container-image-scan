@@ -340,7 +340,10 @@ def parse_args():
                           envvar='RETRY_COUNT',
                           type=int,
                           help="Scan report retry count")
-    parser.add_argument('--plugin', action=argparse.BooleanOptionalAction, default=False, dest="plugin", required=False, help="Prints the report as json to stdout")
+    parser.add_argument('--plugin', action='store_true',
+                        default=False,
+                        dest="plugin",
+                        required=False, help="Prints the report as json to stdout")
 
     args = parser.parse_args()
     logging.getLogger().setLevel(args.log_level)
@@ -367,7 +370,7 @@ def main():
         if plugin:
             print(json.dumps(scan_report, indent=4))
             sys.exit(0)
-            
+
         if json_report:
             scan_report.export(json_report)
         f_vuln_score = int(scan_report.get_alerts_vuln())
