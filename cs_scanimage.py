@@ -340,15 +340,20 @@ def parse_args():
                           envvar='RETRY_COUNT',
                           type=int,
                           help="Scan report retry count")
+    parser.add_argument('--plugin', action='store_true',
+                        default=False,
+                        dest="plugin",
+                        required=False, help="Prints the report as json to stdout")
+
     args = parser.parse_args()
     logging.getLogger().setLevel(args.log_level)
 
-    return args.client_id, args.repo, args.tag, args.cloud, args.score, args.report, args.retry_count
+    return args.client_id, args.repo, args.tag, args.cloud, args.score, args.report, args.retry_count, args.plugin
 
 
 def main():
     try:
-        client_id, repo, tag, cloud, score, json_report, retry_count = parse_args()
+        client_id, repo, tag, cloud, score, json_report, retry_count, plugin = parse_args()
         client = docker.from_env()
         client_secret = env.get('FALCON_CLIENT_SECRET')
         if client_secret is None:
@@ -361,6 +366,11 @@ def main():
         scan_image.container_push()
 
         scan_report = scan_image.get_scanreport(retry_count)
+
+        if plugin:
+            print(json.dumps(scan_report, indent=4))
+            sys.exit(0)
+
         if json_report:
             scan_report.export(json_report)
         f_vuln_score = int(scan_report.get_alerts_vuln())
