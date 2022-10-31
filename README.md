@@ -142,3 +142,24 @@ ScriptFailure = 10
 - You can use the [container-image-scan](https://github.com/marketplace/actions/crowdstrike-container-image-scan) GitHub Action in your GitHub workflows. Checkout the action at [https://github.com/marketplace/actions/crowdstrike-container-image-scan](https://github.com/marketplace/actions/crowdstrike-container-image-scan)
 
 - Pipeline examples, including the GitHub Action, can be found at the CrowdStrike [image-scan-example](https://github.com/CrowdStrike/image-scan-example) repository.
+
+## Using the `container-image-scan` Container
+
+```shell
+export FALCON_CLIENT_ID=<client_id>
+export FALCON_CLIENT_SECRET=<client_secret>
+
+docker run -it --rm -e FALCON_CLIENT_ID -e FALCON_CLIENT_SECRET \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    ghcr.io/crowdstrike/container-image-scan:latest
+    --repo <repo> --tag <tag>
+```
+
+You can use any argument that is supported by the script. For example, to set the cloud region:
+
+```shell
+docker run -it --rm -e FALCON_CLIENT_ID -e FALCON_CLIENT_SECRET \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    ghcr.io/crowdstrike/container-image-scan:latest
+    --repo <repo> --tag <tag> -c us-1
+```
