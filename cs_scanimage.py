@@ -340,7 +340,7 @@ def parse_args():
                           envvar='RETRY_COUNT',
                           type=int,
                           help="Scan report retry count")
-    parser.add_argument('--plugin', action=argparse.BooleanOptionalAction, default=False, dest="plugin", required=False, help=argparse.SUPPRESS)
+    parser.add_argument('--plugin', action=argparse.BooleanOptionalAction, default=False, dest="plugin", required=False, help="Prints the report as json to stdout")
 
     args = parser.parse_args()
     logging.getLogger().setLevel(args.log_level)
