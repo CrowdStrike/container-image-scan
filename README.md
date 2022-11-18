@@ -149,7 +149,7 @@ ScriptFailure = 10
 export FALCON_CLIENT_ID=<client_id>
 export FALCON_CLIENT_SECRET=<client_secret>
 
-docker run -it --rm -e FALCON_CLIENT_ID -e FALCON_CLIENT_SECRET \                                                             λ:quay  [   ]
+docker run -it --rm -e FALCON_CLIENT_ID -e FALCON_CLIENT_SECRET \
     -v /var/run/docker.sock:/var/run/docker.sock \
     quay.io/crowdstrike/container-image-scan:latest --repo <repo> --tag <tag>
 ```
@@ -157,7 +157,7 @@ docker run -it --rm -e FALCON_CLIENT_ID -e FALCON_CLIENT_SECRET \               
 You can use any argument that is supported by the script. For example, to set the cloud region:
 
 ```shell
-docker run -it --rm -e FALCON_CLIENT_ID -e FALCON_CLIENT_SECRET \                                                             λ:quay  [   ]
+docker run -it --rm -e FALCON_CLIENT_ID -e FALCON_CLIENT_SECRET \
     -v /var/run/docker.sock:/var/run/docker.sock \
     quay.io/crowdstrike/container-image-scan:latest --repo <repo> --tag <tag> -c us-2
 ```
