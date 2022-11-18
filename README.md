@@ -151,8 +151,7 @@ export FALCON_CLIENT_SECRET=<client_secret>
 
 docker run -it --rm -e FALCON_CLIENT_ID -e FALCON_CLIENT_SECRET \
     -v /var/run/docker.sock:/var/run/docker.sock \
-    ghcr.io/crowdstrike/container-image-scan:latest
-    --repo <repo> --tag <tag>
+    quay.io/crowdstrike/container-image-scan:latest --repo <repo> --tag <tag>
 ```
 
 You can use any argument that is supported by the script. For example, to set the cloud region:
@@ -160,6 +159,5 @@ You can use any argument that is supported by the script. For example, to set th
 ```shell
 docker run -it --rm -e FALCON_CLIENT_ID -e FALCON_CLIENT_SECRET \
     -v /var/run/docker.sock:/var/run/docker.sock \
-    ghcr.io/crowdstrike/container-image-scan:latest
-    --repo <repo> --tag <tag> -c us-1
+    quay.io/crowdstrike/container-image-scan:latest --repo <repo> --tag <tag> -c us-2
 ```
