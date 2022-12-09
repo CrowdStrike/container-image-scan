@@ -46,29 +46,31 @@ $ export CONTAINER_HOST="unix:///var/run/podman/podman.sock"
 ```shell
 $ python3 cs_scanimage.py --help
 usage: cs_scanimage.py [-h] -u CLIENT_ID -r REPO [-t TAG]
-                       [-c {us-1,us-2,eu-1}] [--json-report REPORT]
+                       [-c {us-1,us-2,eu-1,us-gov-1}] [-s SCORE]
+                       [--json-report REPORT]
                        [--log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}]
-                       [ -R RETRY_COUNT ]
-
-Crowdstrike - scan your container image.
+                       [-R RETRY_COUNT] [--plugin] [--user-agent USERAGENT]
 
 optional arguments:
   -h, --help            show this help message and exit
   --json-report REPORT  Export JSON report to specified file
   --log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}
                         Set the logging level
-  -s SCORE --score_threshold
-                        Vulnerability score threshold default 500
-  -R RETRY_COUNT --retry_count
-                        Retry fetching scan report default 10
+  --plugin              Prints the report as json to stdout
+  --user-agent USERAGENT
+                        HTTP User agent to use for API calls
 
 required arguments:
   -u CLIENT_ID, --clientid CLIENT_ID
                         Falcon OAuth2 API ClientID
   -r REPO, --repo REPO  Container image repository
   -t TAG, --tag TAG     Container image tag
-  -c {us-1,us-2,eu-1}, --cloud-region {us-1,us-2,eu-1}
+  -c {us-1,us-2,eu-1,us-gov-1}, --cloud-region {us-1,us-2,eu-1,us-gov-1}
                         CrowdStrike cloud region
+  -s SCORE, --score_threshold SCORE
+                        Vulnerability score threshold
+  -R RETRY_COUNT, --retry_count RETRY_COUNT
+                        Scan report retry count
 ```
 
 Note that CrowdStrike Falcon OAuth2 credentials may be supplied also by the means of environment variables: FALCON_CLIENT_ID, FALCON_CLIENT_SECRET, and FALCON_CLOUD_REGION. Establishing and retrieving OAuth2 API credentials can be performed at https://falcon.crowdstrike.com/support/api-clients-and-keys.
