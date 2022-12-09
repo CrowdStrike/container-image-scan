@@ -301,9 +301,7 @@ class EnvDefault(argparse.Action):
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description=__doc__,
-                                     formatter_class=argparse.RawTextHelpFormatter
-                                     )
+    parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     required = parser.add_argument_group('required arguments')
     required.add_argument('-u', '--clientid', action=EnvDefault,
                           dest="client_id", envvar='FALCON_CLIENT_ID',
