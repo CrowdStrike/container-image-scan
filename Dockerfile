@@ -1,17 +1,16 @@
-FROM python:3.9 AS base
+FROM python:3.8.12-slim-buster
 
-WORKDIR /app
-COPY cs_scanimage.py /app/cs_imagescan.py
+RUN apt-get update
 
-RUN pip install --user docker crowdstrike-falconpy
+RUN yes | apt-get install python3-dev build-essential
 
-ENTRYPOINT ["python", "cs_imagescan.py"]
+RUN pip install --upgrade pip
 
-FROM gcr.io/distroless/python3-debian11:latest AS final
+# COPY requirements.txt /rasa_traind/ # Works
+COPY . /rasa_traind/
 
-COPY --from=base /root/.local /root/.local
-COPY --from=base /app /app
+RUN pip install -r requirements.txt
 
-ENV PATH="/opt/venv/bin:$PATH"
+WORKDIR /rasa_traind/rasa_actions_server/
 
-ENTRYPOINT [ "python", "/app/cs_imagescan.py" ]
+CMD ["rasa", "run"]
