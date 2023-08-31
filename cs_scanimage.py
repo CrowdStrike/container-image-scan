@@ -119,7 +119,7 @@ class ScanImage(Exception):
                 check=True,
             )
             if result.returncode != 0:
-                raise Exception(result.stderr.strip()) from None
+                raise RuntimeError(result.stderr.strip()) from None
 
             log.info(result.stdout.strip())
 
@@ -152,7 +152,7 @@ class ScanImage(Exception):
     # Step 4: poll and get scanreport for specified amount of retries
     def get_scanreport(self, retry_count):
         log.info("Downloading Image Scan Report")
-        sleep_seconds = 10
+        sleep_seconds = 10t p
         for count in range(retry_count):
             time.sleep(sleep_seconds)
             log.debug("retry count %s", count)
