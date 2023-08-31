@@ -152,7 +152,7 @@ class ScanImage(Exception):
     # Step 4: poll and get scanreport for specified amount of retries
     def get_scanreport(self, retry_count):
         log.info("Downloading Image Scan Report")
-        sleep_seconds = 10t p
+        sleep_seconds = 10
         for count in range(retry_count):
             time.sleep(sleep_seconds)
             log.debug("retry count %s", count)
@@ -411,7 +411,7 @@ def parse_args():
         "--retry_count",
         action=EnvDefault,
         dest="retry_count",
-        default="10",
+        default="100",
         envvar="RETRY_COUNT",
         type=int,
         help="Scan report retry count",
