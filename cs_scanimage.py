@@ -52,8 +52,8 @@ try:
 except ModuleNotFoundError:
     import podman as docker
 
-logging.basicConfig(stream=sys.stdout, format='%(levelname)-8s%(message)s')
-log = logging.getLogger('cs_scanimage')
+logging.basicConfig(stream=sys.stdout, format="%(levelname)-8s%(message)s")
+log = logging.getLogger("cs_scanimage")
 
 VERSION = "2.0.1"
 
@@ -67,7 +67,12 @@ class ScanImage(Exception):
         self.repo = repo
         self.tag = tag
         self.client = client
-        self.falcon = FalconContainer(client_id=client_id, client_secret=client_secret, base_url=cloud, user_agent=useragent)
+        self.falcon = FalconContainer(
+            client_id=client_id,
+            client_secret=client_secret,
+            base_url=cloud,
+            user_agent=useragent,
+        )
         self.server_domain = ContainerBaseURL[cloud.replace("-", "").upper()].value
 
     # Step 1: perform container tag to the registry corresponding to the cloud entered
@@ -75,8 +80,12 @@ class ScanImage(Exception):
         local_tag = "%s:%s" % (self.repo, self.tag)
         url_tag = "%s/%s" % (self.server_domain, self.repo)
 
-        container_image = ''.join((''.join(img.attrs["RepoTags"])
-                                   for img in self.client.images.list(filters={"reference": local_tag})))
+        container_image = "".join(
+            (
+                "".join(img.attrs["RepoTags"])
+                for img in self.client.images.list(filters={"reference": local_tag})
+            )
+        )
 
         if not container_image:
             log.info("Pulling container image: '%s'", local_tag)
@@ -88,17 +97,27 @@ class ScanImage(Exception):
     # Step 2: login using the credentials supplied
     def container_login(self):
         log.info("Performing login to CrowdStrike Image Assessment Service")
-        login = self.client.login(username=self.client_id,
-                                  password=self.client_secret, registry=self.server_domain, reauth=True)
+        login = self.client.login(
+            username=self.client_id,
+            password=self.client_secret,
+            registry=self.server_domain,
+            reauth=True,
+        )
         try:
             log.info(login["Status"])
         except TypeError:
             command = ["/usr/bin/podman", "login"]
-            command.extend(['--username', self.client_id])
-            command.extend(['--password', self.client_secret])
+            command.extend(["--username", self.client_id])
+            command.extend(["--password", self.client_secret])
             command.append(self.server_domain)
-            result = subprocess.run(command, shell=False, encoding="utf-8",  # nosec
-                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+            result = subprocess.run(
+                command,
+                shell=False,
+                encoding="utf-8",  # nosec
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=True,
+            )
             if result.returncode != 0:
                 raise Exception(result.stderr.strip()) from None
 
@@ -110,19 +129,23 @@ class ScanImage(Exception):
         log.info("Performing container push to %s", image_str)
 
         try:
-            image_push = self.client.images.push(
-                image_str, stream=True, decode=True)
+            image_push = self.client.images.push(image_str, stream=True, decode=True)
         except AttributeError:
             image_push = self.client.push(image_str, stream=True, decode=True)
 
         for line in image_push:
-            if 'error' in line:
-                raise APIError('docker_push ' + line['error'])
+            if "error" in line:
+                raise APIError("docker_push " + line["error"])
 
-            if 'status' in line and line['status'] == 'Pushing':
-                print("Pushing {}".format([line.get(key) for key in ['progress', 'progressDetails']]), end='\r')
-            elif 'status' in line:
-                log.info("Docker: %s", line['status'])
+            if "status" in line and line["status"] == "Pushing":
+                print(
+                    "Pushing {}".format(
+                        [line.get(key) for key in ["progress", "progressDetails"]]
+                    ),
+                    end="\r",
+                )
+            elif "status" in line:
+                log.info("Docker: %s", line["status"])
             else:
                 log.debug(line)
 
@@ -136,24 +159,28 @@ class ScanImage(Exception):
             resp = self.falcon.get_assessment(repository=self.repo, tag=self.tag)
             if resp["status_code"] != 200:
                 log.info(
-                    "Scan report is not ready yet, retrying in %s seconds", sleep_seconds)
+                    "Scan report is not ready yet, retrying in %s seconds",
+                    sleep_seconds,
+                )
             else:
                 return ScanReport(resp["body"])
-        log.error("Retries exhausted")
-        raise APIError('GET {}'.format(resp.status_code))
+        raise RetryExhaustedError(
+            f"Report was not completed after {retry_count} retries. Use -R or --retry_count to increase the number of retries"
+        )
 
 
 class ScanReport(dict):
     """Summary Report of the Image Scan"""
-    vuln_str_key_1 = 'Vulnerabilities'
-    details_str_key = 'Details'
-    detect_str_key = 'Detections'
+
+    vuln_str_key_1 = "Vulnerabilities"
+    details_str_key = "Details"
+    detect_str_key = "Detections"
 
     severity_high = "high"
     type_malware = "malware"
     type_secret = "secret"  # nosec
-    type_misconfig = 'misconfiguration'
-    type_cis = 'cis'
+    type_misconfig = "misconfiguration"
+    type_cis = "cis"
 
     def status_code(self):
         vuln_code = self.get_alerts_vuln()
@@ -163,7 +190,7 @@ class ScanReport(dict):
         return vuln_code | mal_code | sec_code | mcfg_code
 
     def export(self, filename):
-        with open(filename, 'w', encoding="utf-8") as f:
+        with open(filename, "w", encoding="utf-8") as f:
             f.write(json.dumps(self, indent=4))
 
     # Step 5: pass the vulnerabilities from scan report,
@@ -179,32 +206,36 @@ class ScanReport(dict):
         vulnerabilities = self[self.vuln_str_key_1]
         if vulnerabilities is not None:
             for vulnerability in vulnerabilities:
-                vuln = vulnerability['Vulnerability']
-                cve = vuln.get('CVEID', 'CVE-unknown')
-                details = vuln.get('Details')
+                vuln = vulnerability["Vulnerability"]
+                cve = vuln.get("CVEID", "CVE-unknown")
+                details = vuln.get("Details")
 
                 if isinstance(details, dict):
-                    severity = details.get('severity')
+                    severity = details.get("severity")
                     if severity is None:
-                        cvss_v3 = details.get('cvss_v3_score', {})
-                        severity = cvss_v3.get('severity')
+                        cvss_v3 = details.get("cvss_v3_score", {})
+                        severity = cvss_v3.get("severity")
                     if severity is None:
-                        cvss_v2 = details.get('cvss_v2_score', {})
-                        severity = cvss_v2.get('severity', '')
+                        cvss_v2 = details.get("cvss_v2_score", {})
+                        severity = cvss_v2.get("severity", "")
                 else:
-                    severity = ''
+                    severity = ""
 
-                product = vuln.get('Product', {})
-                affects = product.get('PackageSource', product)
+                product = vuln.get("Product", {})
+                affects = product.get("PackageSource", product)
                 log.warning(
-                    "%-8s %-16s Vulnerability detected affecting %s", severity, cve, affects)
-                if severity.lower() == 'low':
+                    "%-8s %-16s Vulnerability detected affecting %s",
+                    severity,
+                    cve,
+                    affects,
+                )
+                if severity.lower() == "low":
                     vuln_score = vuln_score + low_score
-                if severity.lower() == 'medium':
+                if severity.lower() == "medium":
                     vuln_score = vuln_score + medium_score
-                if severity.lower() == 'high':
+                if severity.lower() == "high":
                     vuln_score = vuln_score + high_score
-                if severity.lower() == 'critical':
+                if severity.lower() == "critical":
                     vuln_score = vuln_score + critical_score
         return vuln_score
 
@@ -218,7 +249,7 @@ class ScanReport(dict):
         if detections is not None:
             for detection in detections:
                 try:
-                    if detection['Detection']['Type'].lower() == self.type_malware:
+                    if detection["Detection"]["Type"].lower() == self.type_malware:
                         log.warning("Alert: Malware found")
                         det_code = ScanStatusCode.Malware.value
                         break
@@ -236,7 +267,7 @@ class ScanReport(dict):
         if detections is not None:
             for detection in detections:
                 try:
-                    if detection['Detection']['Type'].lower() == self.type_secret:
+                    if detection["Detection"]["Type"].lower() == self.type_secret:
                         log.error("Alert: Leaked secrets detected")
                         det_code = ScanStatusCode.Secrets.value
                         break
@@ -254,7 +285,10 @@ class ScanReport(dict):
         if detections is not None:
             for detection in detections:
                 try:
-                    if detection['Detection']['Type'].lower() in [self.type_misconfig, self.type_cis]:
+                    if detection["Detection"]["Type"].lower() in [
+                        self.type_misconfig,
+                        self.type_cis,
+                    ]:
                         log.warning("Alert: Misconfiguration found")
                         det_code = ScanStatusCode.Success.value
                         break
@@ -271,6 +305,7 @@ class ScanStatusCode(Enum):
     Success = 0
     ScriptFailure = 10
 
+
 # api err generated by setting statuses
 
 
@@ -284,6 +319,10 @@ class APIError(Exception):
         return "APIError: status={}".format(self.status)
 
 
+class RetryExhaustedError(Exception):
+    """Raised when get report retries are exhausted"""
+
+
 # The following class was authored by Russell Heilling
 # See https://stackoverflow.com/questions/10551117/setting-options-from-environment-variables-when-using-argparse/10551190#10551190
 class EnvDefault(argparse.Action):
@@ -292,79 +331,145 @@ class EnvDefault(argparse.Action):
             default = env[envvar]
         if required and default:
             required = False
-        super(EnvDefault, self).__init__(default=default, required=required,
-                                         **kwargs)
+        super(EnvDefault, self).__init__(default=default, required=required, **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
         setattr(namespace, self.dest, values)
+
+
 # End code authored by Russell Heilling
 
 
 def parse_args():
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
-    required = parser.add_argument_group('required arguments')
-    required.add_argument('-u', '--clientid', action=EnvDefault,
-                          dest="client_id", envvar='FALCON_CLIENT_ID',
-                          help="Falcon OAuth2 API ClientID")
-    required.add_argument('-r', '--repo', action=EnvDefault, dest="repo",
-                          envvar='CONTAINER_REPO',
-                          help="Container image repository")
-    required.add_argument('-t', '--tag', action=EnvDefault, dest="tag",
-                          default='latest',
-                          envvar='CONTAINER_TAG',
-                          help="Container image tag")
-    required.add_argument('-c', '--cloud-region', action=EnvDefault, dest="cloud",
-                          envvar="FALCON_CLOUD_REGION",
-                          default='us-1',
-                          choices=['us-1', 'us-2', 'eu-1', 'us-gov-1'],
-                          help="CrowdStrike cloud region")
-    required.add_argument('-s', '--score_threshold', action=EnvDefault, dest="score",
-                          default='500',
-                          envvar='SCORE',
-                          help="Vulnerability score threshold")
-    parser.add_argument('--json-report', action=EnvDefault, dest="report",
-                        envvar="JSON_REPORT",
-                        default=None,
-                        required=False,
-                        help='Export JSON report to specified file')
-    parser.add_argument('--log-level', action=EnvDefault, dest='log_level',
-                        envvar="LOG_LEVEL",
-                        default='INFO',
-                        required=False,
-                        choices=['DEBUG', 'INFO',
-                                 'WARNING', 'ERROR', 'CRITICAL'],
-                        help="Set the logging level")
-    required.add_argument('-R', '--retry_count', action=EnvDefault, dest="retry_count",
-                          default='10',
-                          envvar='RETRY_COUNT',
-                          type=int,
-                          help="Scan report retry count")
-    parser.add_argument('--plugin', action='store_true',
-                        default=False,
-                        dest="plugin",
-                        required=False, help="Prints the report as json to stdout")
-    parser.add_argument('--user-agent',
-                        default="container-image-scan",
-                        type=str, dest="useragent",
-                        help="HTTP User agent to use for API calls. Default is 'container-image-scan'")
+    required = parser.add_argument_group("required arguments")
+    required.add_argument(
+        "-u",
+        "--clientid",
+        action=EnvDefault,
+        dest="client_id",
+        envvar="FALCON_CLIENT_ID",
+        help="Falcon OAuth2 API ClientID",
+    )
+    required.add_argument(
+        "-r",
+        "--repo",
+        action=EnvDefault,
+        dest="repo",
+        envvar="CONTAINER_REPO",
+        help="Container image repository",
+    )
+    required.add_argument(
+        "-t",
+        "--tag",
+        action=EnvDefault,
+        dest="tag",
+        default="latest",
+        envvar="CONTAINER_TAG",
+        help="Container image tag",
+    )
+    required.add_argument(
+        "-c",
+        "--cloud-region",
+        action=EnvDefault,
+        dest="cloud",
+        envvar="FALCON_CLOUD_REGION",
+        default="us-1",
+        choices=["us-1", "us-2", "eu-1", "us-gov-1"],
+        help="CrowdStrike cloud region",
+    )
+    required.add_argument(
+        "-s",
+        "--score_threshold",
+        action=EnvDefault,
+        dest="score",
+        default="500",
+        envvar="SCORE",
+        help="Vulnerability score threshold",
+    )
+    parser.add_argument(
+        "--json-report",
+        action=EnvDefault,
+        dest="report",
+        envvar="JSON_REPORT",
+        default=None,
+        required=False,
+        help="Export JSON report to specified file",
+    )
+    parser.add_argument(
+        "--log-level",
+        action=EnvDefault,
+        dest="log_level",
+        envvar="LOG_LEVEL",
+        default="INFO",
+        required=False,
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="Set the logging level",
+    )
+    required.add_argument(
+        "-R",
+        "--retry_count",
+        action=EnvDefault,
+        dest="retry_count",
+        default="10",
+        envvar="RETRY_COUNT",
+        type=int,
+        help="Scan report retry count",
+    )
+    parser.add_argument(
+        "--plugin",
+        action="store_true",
+        default=False,
+        dest="plugin",
+        required=False,
+        help="Prints the report as json to stdout",
+    )
+    parser.add_argument(
+        "--user-agent",
+        default="container-image-scan",
+        type=str,
+        dest="useragent",
+        help="HTTP User agent to use for API calls. Default is 'container-image-scan'",
+    )
 
     args = parser.parse_args()
     logging.getLogger().setLevel(args.log_level)
 
-    return args.client_id, args.repo, args.tag, args.cloud, args.score, args.report, args.retry_count, args.plugin, args.useragent
+    return (
+        args.client_id,
+        args.repo,
+        args.tag,
+        args.cloud,
+        args.score,
+        args.report,
+        args.retry_count,
+        args.plugin,
+        args.useragent,
+    )
 
 
 def main():
     try:
-        client_id, repo, tag, cloud, score, json_report, retry_count, plugin, useragent = parse_args()
+        (
+            client_id,
+            repo,
+            tag,
+            cloud,
+            score,
+            json_report,
+            retry_count,
+            plugin,
+            useragent,
+        ) = parse_args()
         client = docker.from_env()
-        client_secret = env.get('FALCON_CLIENT_SECRET')
+        client_secret = env.get("FALCON_CLIENT_SECRET")
         if client_secret is None:
             print("Please enter your Falcon OAuth2 API Secret")
             client_secret = getpass.getpass()
-        useragent = ("%s/%s" % (useragent, VERSION))
-        scan_image = ScanImage(client_id, client_secret,
-                               repo, tag, client, cloud, useragent)
+        useragent = "%s/%s" % (useragent, VERSION)
+        scan_image = ScanImage(
+            client_id, client_secret, repo, tag, client, cloud, useragent
+        )
         scan_image.container_tag()
         scan_image.container_login()
         scan_image.container_push()
@@ -390,15 +495,24 @@ def main():
             sys.exit(ScanStatusCode.Malware.value)
         if f_vuln_score >= int(score):
             log.error(
-                "Exiting: Vulnerability score threshold exceeded: '%s' out of '%s'", f_vuln_score, score)
+                "Exiting: Vulnerability score threshold exceeded: '%s' out of '%s'",
+                f_vuln_score,
+                score,
+            )
             sys.exit(ScanStatusCode.Vulnerability.value)
         else:
             log.info(
-                "Vulnerability score threshold not met: '%s' out of '%s'", f_vuln_score, score)
+                "Vulnerability score threshold not met: '%s' out of '%s'",
+                f_vuln_score,
+                score,
+            )
             sys.exit(ScanStatusCode.Success.value)
 
     except APIError:
         log.exception("Unable to scan")
+        sys.exit(ScanStatusCode.ScriptFailure.value)
+    except RetryExhaustedError:
+        log.exception("Retries exhausted")
         sys.exit(ScanStatusCode.ScriptFailure.value)
     except Exception:  # pylint: disable=broad-except
         log.exception("Unknown error")
