@@ -56,7 +56,7 @@ except ModuleNotFoundError:
 logging.basicConfig(stream=sys.stdout, format="%(levelname)-8s%(message)s")
 log = logging.getLogger("cs_scanimage")
 
-VERSION = "2.0.1"
+VERSION = "2.1.1"
 
 
 class ScanImage(Exception):
