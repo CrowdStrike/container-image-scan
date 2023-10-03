@@ -46,6 +46,7 @@ import subprocess  # nosec
 import time
 import getpass
 from falconpy import FalconContainer, ContainerBaseURL
+from retry import retry
 
 try:
     import docker
@@ -124,6 +125,7 @@ class ScanImage(Exception):
             log.info(result.stdout.strip())
 
     # Step 3: perform container push using the repo and tag supplied
+    @retry(TimeoutError, tries=5, delay=5)
     def container_push(self):
         image_str = "%s/%s:%s" % (self.server_domain, self.repo, self.tag)
         log.info("Performing container push to %s", image_str)

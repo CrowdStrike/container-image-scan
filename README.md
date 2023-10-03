@@ -41,6 +41,12 @@ Once the Podman python dependencies are installed, configure the URI path for th
 $ export CONTAINER_HOST="unix:///var/run/podman/podman.sock"
 ```
 
+### Install all Python Prerequisites
+
+```shell
+$ pip3 install -r requirements.txt
+```
+
 ## Usage
 
 ```shell
