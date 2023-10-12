@@ -3,7 +3,7 @@ FROM python:3.9 AS base
 WORKDIR /app
 COPY cs_scanimage.py /app/cs_imagescan.py
 
-RUN pip install --user docker crowdstrike-falconpy
+RUN pip install --user retry docker crowdstrike-falconpy
 
 ENTRYPOINT ["python", "cs_imagescan.py"]
 
