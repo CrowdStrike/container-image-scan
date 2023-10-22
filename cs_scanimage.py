@@ -485,13 +485,13 @@ def main():
         if json_report:
             scan_report.export(json_report)
         f_vuln_score = int(scan_report.get_alerts_vuln())
-        f_secrets = int(scan_report.get_alerts_secrets())
+        # f_secrets = int(scan_report.get_alerts_secrets())
         f_malware = int(scan_report.get_alerts_malware())
         scan_report.get_alerts_misconfig()
 
-        if f_secrets == ScanStatusCode.Secrets.value:
-            log.error("Exiting: Secrets found in container image")
-            sys.exit(ScanStatusCode.Secrets.value)
+        # if f_secrets == ScanStatusCode.Secrets.value:
+        #     log.error("Exiting: Secrets found in container image")
+        #     sys.exit(ScanStatusCode.Secrets.value)
         if f_malware == ScanStatusCode.Malware.value:
             log.error("Exiting: Malware found in container image")
             sys.exit(ScanStatusCode.Malware.value)
