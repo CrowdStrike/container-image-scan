@@ -21,7 +21,8 @@ setup(
     include_package_data=True,
     install_requires=[
         'docker',
-        'crowdstrike-falconpy'
+        'crowdstrike-falconpy',
+        'retry'
     ],
     extras_require={
         'devel': [
