@@ -1,3 +1,4 @@
+crowdstrike-falconpy
 setuptools>=59.6.0
 docker>=5.0.3
 retry>=0.9.2
