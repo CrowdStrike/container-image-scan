@@ -48,10 +48,6 @@ import getpass
 from falconpy import FalconContainer, ContainerBaseURL
 from retry import retry
 
-try:
-    import docker
-except ModuleNotFoundError:
-    import podman as docker
 
 logging.basicConfig(stream=sys.stdout, format="%(levelname)-8s%(message)s")
 log = logging.getLogger("cs_scanimage")
@@ -62,18 +58,12 @@ VERSION = "2.1.2"
 class ScanImage(Exception):
     """Scanning Image Tasks"""
 
-    def __init__(self, client_id, client_secret, repo, tag, client, cloud, useragent):
+    def __init__(self, client_id, client_secret, repo, tag, client, cloud):
         self.client_id = client_id
         self.client_secret = client_secret
         self.repo = repo
         self.tag = tag
         self.client = client
-        self.falcon = FalconContainer(
-            client_id=client_id,
-            client_secret=client_secret,
-            base_url=cloud,
-            user_agent=useragent,
-        )
         self.server_domain = ContainerBaseURL[cloud.replace("-", "").upper()].value
 
     # Step 1: perform container tag to the registry corresponding to the cloud entered
@@ -151,24 +141,32 @@ class ScanImage(Exception):
             else:
                 log.debug(line)
 
-    # Step 4: poll and get scanreport for specified amount of retries
-    def get_scanreport(self, retry_count):
-        log.info("Downloading Image Scan Report")
-        sleep_seconds = 10
-        for count in range(retry_count):
-            time.sleep(sleep_seconds)
-            log.debug("retry count %s", count)
-            resp = self.falcon.get_assessment(repository=self.repo, tag=self.tag)
-            if resp["status_code"] != 200:
-                log.info(
-                    "Scan report is not ready yet, retrying in %s seconds",
-                    sleep_seconds,
-                )
-            else:
-                return ScanReport(resp["body"])
-        raise RetryExhaustedError(
-            f"Report was not completed after {retry_count} retries. Use -R or --retry_count to increase the number of retries"
-        )
+
+# Step 4: poll and get scanreport for specified amount of retries
+def get_scanreport(client_id, client_secret, cloud, user_agent, repo, tag, retry_count):
+    log.info("Downloading Image Scan Report")
+    falcon = FalconContainer(
+        client_id=client_id,
+        client_secret=client_secret,
+        base_url=cloud,
+        user_agent=user_agent,
+    )
+
+    sleep_seconds = 10
+    for count in range(retry_count):
+        time.sleep(sleep_seconds)
+        log.debug("retry count %s", count)
+        resp = falcon.get_assessment(repository=repo, tag=tag)
+        if resp["status_code"] != 200:
+            log.info(
+                "Scan report is not ready yet, retrying in %s seconds",
+                sleep_seconds,
+            )
+        else:
+            return ScanReport(resp["body"])
+    raise RetryExhaustedError(
+        f"Report was not completed after {retry_count} retries. Use -R or --retry_count to increase the number of retries"
+    )
 
 
 class ScanReport(dict):
@@ -433,6 +431,9 @@ def parse_args():
         dest="useragent",
         help="HTTP User agent to use for API calls. Default is 'container-image-scan'",
     )
+    parser.add_argument(
+        "--skip-push", default=False, action="store_true", help="Skip image push"
+    )
 
     args = parser.parse_args()
     logging.getLogger().setLevel(args.log_level)
@@ -447,10 +448,12 @@ def parse_args():
         args.retry_count,
         args.plugin,
         args.useragent,
+        args.skip_push,
     )
 
 
-def main():
+def main():  # pylint: disable=R0915
+
     try:
         (
             client_id,
@@ -462,21 +465,29 @@ def main():
             retry_count,
             plugin,
             useragent,
+            skip_push,
         ) = parse_args()
-        client = docker.from_env()
         client_secret = env.get("FALCON_CLIENT_SECRET")
         if client_secret is None:
             print("Please enter your Falcon OAuth2 API Secret")
             client_secret = getpass.getpass()
-        useragent = "%s/%s" % (useragent, VERSION)
-        scan_image = ScanImage(
-            client_id, client_secret, repo, tag, client, cloud, useragent
-        )
-        scan_image.container_tag()
-        scan_image.container_login()
-        scan_image.container_push()
 
-        scan_report = scan_image.get_scanreport(retry_count)
+        if not skip_push:
+            # Those skipping push may not have docker/podman installed
+            try:
+                import docker  # pylint: disable=C0415
+            except ModuleNotFoundError:
+                import podman as docker  # pylint: disable=C0415
+            client = docker.from_env()
+            useragent = "%s/%s" % (useragent, VERSION)
+            scan_image = ScanImage(client_id, client_secret, repo, tag, client, cloud)
+            scan_image.container_tag()
+            scan_image.container_login()
+            scan_image.container_push()
+
+        scan_report = get_scanreport(
+            client_id, client_secret, cloud, useragent, repo, tag, retry_count
+        )
 
         if plugin:
             print(json.dumps(scan_report, indent=4))
