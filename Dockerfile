@@ -1,16 +1,17 @@
-FROM python:3.9 AS base
+FROM python:3.9 AS build
 
 WORKDIR /app
+COPY requirements.txt requirements.txt
 COPY cs_scanimage.py /app/cs_imagescan.py
 
-RUN pip install --user retry docker crowdstrike-falconpy
+RUN pip install --user -r requirements.txt
 
 ENTRYPOINT ["python", "cs_imagescan.py"]
 
-FROM gcr.io/distroless/python3-debian11:latest AS final
+FROM gcr.io/distroless/python3-debian11:latest
 
-COPY --from=base /root/.local /root/.local
-COPY --from=base /app /app
+COPY --from=build /root/.local /root/.local
+COPY --from=build /app /app
 
 ENV PATH="/opt/venv/bin:$PATH"
 
