@@ -432,6 +432,14 @@ def parse_args():
         help="HTTP User agent to use for API calls. Default is 'container-image-scan'",
     )
     parser.add_argument(
+        "--container-engine",
+        default="docker",
+        type=str,
+        dest="container_engine",
+        choices=["docker", "podman"],
+        help="Container engine.",
+    )
+    parser.add_argument(
         "--skip-push", default=False, action="store_true", help="Skip image push"
     )
 
@@ -448,6 +456,7 @@ def parse_args():
         args.retry_count,
         args.plugin,
         args.useragent,
+        args.container_engine,
         args.skip_push,
     )
 
@@ -465,6 +474,7 @@ def main():  # pylint: disable=R0915
             retry_count,
             plugin,
             useragent,
+            container_engine,
             skip_push,
         ) = parse_args()
         client_secret = env.get("FALCON_CLIENT_SECRET")
@@ -474,10 +484,13 @@ def main():  # pylint: disable=R0915
 
         if not skip_push:
             # Those skipping push may not have docker/podman installed
-            try:
+            if container_engine == "docker":
                 import docker  # pylint: disable=C0415
-            except ModuleNotFoundError:
+            elif container_engine == "podman":
                 import podman as docker  # pylint: disable=C0415
+            else:
+                log.error("Unknown container engine: %s", container_engine)
+                sys.exit(ScanStatusCode.ScriptFailure.value)
             client = docker.from_env()
             useragent = "%s/%s" % (useragent, VERSION)
             scan_image = ScanImage(client_id, client_secret, repo, tag, client, cloud)
