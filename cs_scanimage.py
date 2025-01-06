@@ -434,6 +434,17 @@ def parse_args():
     parser.add_argument(
         "--skip-push", default=False, action="store_true", help="Skip image push"
     )
+    parser.add_argument(
+        "-T",
+        "--docker-timeout",
+        action=EnvDefault,
+        dest="docker_timeout",
+        envvar="DOCKER_TIMEOUT",
+        default=60,
+        required=False,
+        type=int,
+        help="Set the timeout for the docker client",
+    )
 
     args = parser.parse_args()
     logging.getLogger().setLevel(args.log_level)
@@ -449,6 +460,7 @@ def parse_args():
         args.plugin,
         args.useragent,
         args.skip_push,
+        args.docker_timeout,
     )
 
 
@@ -466,6 +478,7 @@ def main():  # pylint: disable=R0915
             plugin,
             useragent,
             skip_push,
+            docker_timeout,
         ) = parse_args()
         client_secret = env.get("FALCON_CLIENT_SECRET")
         if client_secret is None:
@@ -478,7 +491,7 @@ def main():  # pylint: disable=R0915
                 import docker  # pylint: disable=C0415
             except ModuleNotFoundError:
                 import podman as docker  # pylint: disable=C0415
-            client = docker.from_env()
+            client = docker.from_env(timeout=docker_timeout)
             useragent = "%s/%s" % (useragent, VERSION)
             scan_image = ScanImage(client_id, client_secret, repo, tag, client, cloud)
             scan_image.container_tag()
