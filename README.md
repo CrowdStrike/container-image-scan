@@ -51,31 +51,31 @@ $ pip3 install -r requirements.txt
 
 ```shell
 $ python3 cs_scanimage.py --help
-usage: cs_scanimage.py [-h] -u CLIENT_ID -r REPO [-t TAG]
-                       [-c {us-1,us-2,eu-1,us-gov-1}] [-s SCORE]
-                       [--json-report REPORT]
-                       [--log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}]
-                       [-R RETRY_COUNT] [--plugin] [--user-agent USERAGENT]
+usage: cs_scanimage.py [-h] -u CLIENT_ID -r REPO [-t TAG] [-c {us-1,us-2,eu-1,us-gov-1}] [-s SCORE] [--json-report REPORT] [--log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}]
+                       [-R RETRY_COUNT] [--plugin] [--user-agent USERAGENT] [--skip-push] [-T DOCKER_TIMEOUT]
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   --json-report REPORT  Export JSON report to specified file
   --log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}
                         Set the logging level
   --plugin              Prints the report as json to stdout
   --user-agent USERAGENT
-                        HTTP User agent to use for API calls
+                        HTTP User agent to use for API calls. Default is 'container-image-scan'
+  --skip-push           Skip image push
+  -T, --docker-timeout DOCKER_TIMEOUT
+                        Set the timeout for the docker client
 
 required arguments:
-  -u CLIENT_ID, --clientid CLIENT_ID
+  -u, --clientid CLIENT_ID
                         Falcon OAuth2 API ClientID
-  -r REPO, --repo REPO  Container image repository
-  -t TAG, --tag TAG     Container image tag
-  -c {us-1,us-2,eu-1,us-gov-1}, --cloud-region {us-1,us-2,eu-1,us-gov-1}
+  -r, --repo REPO       Container image repository
+  -t, --tag TAG         Container image tag
+  -c, --cloud-region {us-1,us-2,eu-1,us-gov-1}
                         CrowdStrike cloud region
-  -s SCORE, --score_threshold SCORE
+  -s, --score_threshold SCORE
                         Vulnerability score threshold
-  -R RETRY_COUNT, --retry_count RETRY_COUNT
+  -R, --retry_count RETRY_COUNT
                         Scan report retry count
 ```
 
