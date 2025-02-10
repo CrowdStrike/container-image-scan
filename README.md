@@ -101,7 +101,7 @@ required arguments:
 ### Example 1:
 
 ```shell
-$ python cs_scanimage.py --clientid FALCON_CLIENT_ID --repo <repo> --tag <tag> --cloud-region <cloud_region>
+python cs_scanimage.py --clientid FALCON_CLIENT_ID --repo <repo> --tag <tag> --cloud-region <cloud_region>
 
 please enter password to login
 Password:
@@ -135,7 +135,7 @@ The default value to return a non-zero error code for vulnerabilties is one high
 The example below will accomodate vulnerabilities with a sum of 1500.
 
 ```shell
-$ python cs_scanimage.py --clientid FALCON_CLIENT_ID --repo <repo> --tag <tag> \
+python cs_scanimage.py --clientid FALCON_CLIENT_ID --repo <repo> --tag <tag> \
     --cloud-region <cloud_region> -s 1500
 
 ```
