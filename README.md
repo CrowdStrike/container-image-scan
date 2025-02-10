@@ -13,7 +13,9 @@ All output is sent to stdout/stderr.
 
 ## Prerequisites
 
-This sample/demo script requires the [Docker Engine API python library](https://pypi.org/project/docker/) or the [Bindings for Podman RESTful API](https://pypi.org/project/podman/) and the [FalconPy SDK](https://github.com/CrowdStrike/falconpy). These can be installed via `pip`:
+- Docker or Podman installed and running
+- Python3 and pip installed
+- CrowdStrike OAuth2 API keys with appropriate permissions (see below)
 
 ### OAuth2 API Key Prerequisites
 
