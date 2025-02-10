@@ -57,9 +57,10 @@ VERSION = "2.3.0"
 class ScanImage(Exception):
     """Scanning Image Tasks"""
 
+    # pylint:disable=too-many-instance-attributes
     def __init__(
         self, client_id, client_secret, repo, tag, client, runtime, cloud
-    ):  # pylint: disable=too-many-positional-arguments
+    ):  # pylint:disable=too-many-positional-arguments
         self.client_id = client_id
         self.client_secret = client_secret
         self.repo = repo
@@ -161,7 +162,7 @@ class ScanImage(Exception):
 # Step 4: poll and get scanreport for specified amount of retries
 def get_scanreport(
     client_id, client_secret, cloud, user_agent, repo, tag, retry_count
-):  # pylint: disable=too-many-positional-arguments
+):  # pylint:disable=too-many-positional-arguments
     log.info("Downloading Image Scan Report")
     falcon = FalconContainer(
         client_id=client_id,
@@ -473,14 +474,14 @@ def parse_args():
 def detect_container_runtime():
     """Detect whether Docker or Podman is available and return the appropriate client"""
     try:
-        import docker  # pylint: disable=C0415
+        import docker  # pylint:disable=C0415
 
         try:
             client = docker.from_env()
             client.ping()
             return client, "docker"
         except (docker.errors.APIError, docker.errors.DockerException):
-            import podman  # pylint: disable=C0415
+            import podman  # pylint:disable=C0415
 
             client = podman.from_env()
             try:
@@ -495,7 +496,7 @@ def detect_container_runtime():
             return client, "podman"
     except ImportError:
         try:
-            import podman  # pylint: disable=C0415
+            import podman  # pylint:disable=C0415
 
             client = podman.from_env()
             try:
@@ -514,7 +515,7 @@ def detect_container_runtime():
             ) from exc
 
 
-def main():  # pylint: disable=R0915
+def main():  # pylint:disable=R0915
 
     try:
         (
