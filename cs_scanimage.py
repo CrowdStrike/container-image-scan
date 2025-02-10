@@ -46,7 +46,6 @@ import subprocess  # nosec
 import time
 import getpass
 from falconpy import FalconContainer, ContainerBaseURL
-import podman.errors
 from retry import retry
 
 
@@ -59,7 +58,9 @@ VERSION = "2.3.0"
 class ScanImage(Exception):
     """Scanning Image Tasks"""
 
-    def __init__(self, client_id, client_secret, repo, tag, client, runtime, cloud):
+    def __init__(
+        self, client_id, client_secret, repo, tag, client, runtime, cloud
+    ):  # pylint: disable=too-many-positional-arguments
         self.client_id = client_id
         self.client_secret = client_secret
         self.repo = repo
@@ -110,7 +111,7 @@ class ScanImage(Exception):
             try:
                 result = subprocess.run(
                     command,
-                    shell=False,
+                    shell=False,  # nosec
                     encoding="utf-8",
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
@@ -159,7 +160,9 @@ class ScanImage(Exception):
 
 
 # Step 4: poll and get scanreport for specified amount of retries
-def get_scanreport(client_id, client_secret, cloud, user_agent, repo, tag, retry_count):
+def get_scanreport(
+    client_id, client_secret, cloud, user_agent, repo, tag, retry_count
+):  # pylint: disable=too-many-positional-arguments
     log.info("Downloading Image Scan Report")
     falcon = FalconContainer(
         client_id=client_id,
