@@ -53,9 +53,12 @@ pip3 install podman crowdstrike-falconpy retry
    systemctl --user start podman.socket
    ```
 
-2. For ***rootful*** Podman, Set the container host environment variable:
+2. For ***rootful*** Podman, ensure the following:
 
    ```shell
+   # The socket is running
+   systemctl start podman.socket
+   # Set the container host environment variable
    export CONTAINER_HOST="unix:///var/run/podman/podman.sock"
    ```
 
