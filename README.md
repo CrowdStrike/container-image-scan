@@ -27,31 +27,44 @@ A CrowdStrike [OAuth2 API keys](https://falcon.crowdstrike.com/support/api-clien
 
 ## Installation
 
-### For Docker Only
+Choose ONE of the following installation methods based on your container runtime:
+
+### Option 1: Docker Installation
+
+If you're using Docker:
 
 ```shell
 pip3 install docker crowdstrike-falconpy retry
 ```
 
-### For Podman Only
+### Option 2: Podman Installation
+
+If you're using Podman:
 
 ```shell
 pip3 install podman crowdstrike-falconpy retry
 ```
 
-> [!WARNING]
->
-> The following command only needs to be executed if running podman as root:
->
-> ```shell
-> export CONTAINER_HOST="unix:///var/run/podman/podman.sock"
-> ```
+#### Important Podman Configuration Notes
 
-### Complete Installation (requirements.txt)
+1. For ***rootless*** Podman, ensure the podman socket is running:
+
+   ```shell
+   systemctl --user start podman.socket
+   ```
+
+2. For ***rootful*** Podman, Set the container host environment variable:
+
+   ```shell
+   export CONTAINER_HOST="unix:///var/run/podman/podman.sock"
+   ```
+
+### Option 3: Complete Installation
+
+To install support for both Docker and Podman:
 
 > [!NOTE]
-> Using the requirements.txt file will install both Docker and Podman python packages along with
-> any other dependency.
+> If using Podman, follow the [Podman Configuration Notes](#important-podman-configuration-notes) above after installing the requirements.
 
 ```shell
 pip3 install -r requirements.txt
@@ -94,11 +107,11 @@ required arguments:
 >
 > `FALCON_CLIENT_ID`, `FALCON_CLIENT_SECRET`, and `FALCON_CLOUD_REGION`.
 >
-> Establishing and retrieving API credentials can be performed at https://falcon.crowdstrike.com/support/api-clients-and-keys.
+> Establishing and retrieving API credentials can be performed at <https://falcon.crowdstrike.com/support/api-clients-and-keys>.
 
 ## Example Scans
 
-### Example 1:
+### Example 1
 
 ```shell
 python cs_scanimage.py --clientid FALCON_CLIENT_ID --repo <repo> --tag <tag> --cloud-region <cloud_region>
@@ -119,7 +132,7 @@ WARNING Alert: Misconfiguration found
 INFO    Vulnerability score threshold not met: '0' out of '500'
 ```
 
-### Example 2:
+### Example 2
 
 The script provided was built to score vulnerabilities on a scale show below.
 
