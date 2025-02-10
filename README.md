@@ -23,28 +23,36 @@ A CrowdStrike [OAuth2 API keys](https://falcon.crowdstrike.com/support/api-clien
 | ---------------------- | ------------------ |
 | Falcon Container Image | `read` and `write` |
 
-### Docker Python Prerequisites
+## Installation
+
+### For Docker Only
 
 ```shell
-$ pip3 install docker crowdstrike-falconpy
+pip3 install docker crowdstrike-falconpy retry
 ```
 
-### Podman Python Prerequisites
+### For Podman Only
 
 ```shell
-$ pip3 install podman crowdstrike-falconpy
+pip3 install podman crowdstrike-falconpy retry
 ```
 
-Once the Podman python dependencies are installed, configure the URI path for the service.
+> [!WARNING]
+>
+> The following command only needs to be executed if running podman as root:
+>
+> ```shell
+> export CONTAINER_HOST="unix:///var/run/podman/podman.sock"
+> ```
+
+### Complete Installation (requirements.txt)
+
+> [!NOTE]
+> Using the requirements.txt file will install both Docker and Podman python packages along with
+> any other dependency.
 
 ```shell
-$ export CONTAINER_HOST="unix:///var/run/podman/podman.sock"
-```
-
-### Install all Python Prerequisites
-
-```shell
-$ pip3 install -r requirements.txt
+pip3 install -r requirements.txt
 ```
 
 ## Usage
@@ -79,9 +87,12 @@ required arguments:
                         Scan report retry count
 ```
 
-Note that CrowdStrike Falcon OAuth2 credentials may be supplied also by the means of environment variables: FALCON_CLIENT_ID, FALCON_CLIENT_SECRET, and FALCON_CLOUD_REGION. Establishing and retrieving OAuth2 API credentials can be performed at https://falcon.crowdstrike.com/support/api-clients-and-keys.
-
-FALCON_CLIENT_ID and FALCON_CLIENT_SECRET can be set via environment variables for automation.
+> [!NOTE]
+> CrowdStrike Falcon API credentials may be supplied also by the means of environment variables:
+>
+> `FALCON_CLIENT_ID`, `FALCON_CLIENT_SECRET`, and `FALCON_CLOUD_REGION`.
+>
+> Establishing and retrieving API credentials can be performed at https://falcon.crowdstrike.com/support/api-clients-and-keys.
 
 ## Example Scans
 

@@ -46,6 +46,7 @@ import subprocess  # nosec
 import time
 import getpass
 from falconpy import FalconContainer, ContainerBaseURL
+import podman.errors
 from retry import retry
 
 
@@ -480,14 +481,24 @@ def detect_container_runtime():
             import podman  # pylint: disable=C0415
 
             client = podman.from_env()
-            client.ping()
+            try:
+                client.ping()
+            except (ConnectionRefusedError, podman.errors.exceptions.APIError) as exc:
+                raise RuntimeError(
+                    "Could not connect to Podman socket, double check the CONTAINER_HOST environment variable."
+                ) from exc
             return client, "podman"
     except ImportError:
         try:
             import podman  # pylint: disable=C0415
 
             client = podman.from_env()
-            client.ping()
+            try:
+                client.ping()
+            except (ConnectionRefusedError, podman.errors.exceptions.APIError) as exc:
+                raise RuntimeError(
+                    "Could not connect to Podman socket, double check the CONTAINER_HOST environment variable."
+                ) from exc
             return client, "podman"
         except ImportError as exc:
             raise RuntimeError(
