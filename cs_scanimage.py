@@ -51,7 +51,7 @@ from retry import retry
 logging.basicConfig(stream=sys.stdout, format="%(levelname)-8s%(message)s")
 log = logging.getLogger("cs_scanimage")
 
-VERSION = "2.3.0"
+VERSION = "2.4.1"
 
 
 class ScanImage(Exception):
