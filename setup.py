@@ -9,7 +9,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="container-image-scan",
-    version="2.3.0",
+    version="2.4.1",
     author="CrowdStrike",
     description="Script to scan a container and return response codes indicating pass/fail",
     long_description=long_description,
@@ -19,15 +19,11 @@ setup(
     package_dir={"": "."},
     py_modules=[splitext(basename(path))[0] for path in glob("*.py")],
     include_package_data=True,
-    install_requires=[
-        'docker',
-        'crowdstrike-falconpy',
-        'retry'
-    ],
+    install_requires=["docker", "crowdstrike-falconpy", "retry"],
     extras_require={
-        'devel': [
-            'flake8',
-            'pylint',
+        "devel": [
+            "flake8",
+            "pylint",
         ],
     },
     classifiers=[
@@ -44,5 +40,5 @@ setup(
         "License :: OSI Approved :: The Unlicense (Unlicense)",
         "Operating System :: OS Independent",
     ],
-    python_requires='>=3.6',
+    python_requires=">=3.6",
 )
