@@ -45,7 +45,7 @@ from enum import Enum
 import time
 import getpass
 from falconpy import FalconContainer, ContainerBaseURL
-from retry import retry
+from tenacity import retry, stop_after_attempt, stop_after_delay
 
 
 logging.basicConfig(stream=sys.stdout, format="%(levelname)-8s%(message)s")
@@ -119,7 +119,7 @@ class ScanImage(Exception):
                 raise
 
     # Step 3: perform container push using the repo and tag supplied
-    @retry(TimeoutError, tries=5, delay=5)
+    @retry(stop=(stop_after_delay(5) | stop_after_attempt(5)))
     def container_push(self):
         image_str = "%s/%s:%s" % (self.server_domain, self.repo, self.tag)
         log.info("Performing container push to %s", image_str)
