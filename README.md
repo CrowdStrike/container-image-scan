@@ -1,3 +1,6 @@
+> [!WARNING]
+> **DEPRECATED**: This repository is deprecated and will no longer receive updates. Please migrate to the new [CrowdStrike FCS Action](https://github.com/CrowdStrike/fcs-action) for future container image scanning needs.
+
 # CrowdStrike Container Image Scan [![Flake8](https://github.com/CrowdStrike/container-image-scan/actions/workflows/linting.yml/badge.svg)](https://github.com/CrowdStrike/container-image-scan/actions/workflows/linting.yml)
 
 This script will scan a container and return response codes indicating pass/fail status.
