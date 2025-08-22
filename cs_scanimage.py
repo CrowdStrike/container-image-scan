@@ -72,8 +72,8 @@ class ScanImage(Exception):
 
     # Step 1: perform container tag to the registry corresponding to the cloud entered
     def container_tag(self):
-        local_tag = "%s:%s" % (self.repo, self.tag)
-        url_tag = "%s/%s" % (self.server_domain, self.repo)
+        local_tag = f"{self.repo}:{self.tag}"
+        url_tag = f"{self.server_domain}/{self.repo}"
 
         container_image = "".join(
             (
@@ -121,7 +121,7 @@ class ScanImage(Exception):
     # Step 3: perform container push using the repo and tag supplied
     @retry(TimeoutError, tries=5, delay=5)
     def container_push(self):
-        image_str = "%s/%s:%s" % (self.server_domain, self.repo, self.tag)
+        image_str = f"{self.server_domain}/{self.repo}:{self.tag}"
         log.info("Performing container push to %s", image_str)
 
         try:
@@ -145,9 +145,7 @@ class ScanImage(Exception):
 
                 if "status" in line and line["status"] == "Pushing":
                     print(
-                        "Pushing {}".format(
-                            [line.get(key) for key in ["progress", "progressDetails"]]
-                        ),
+                        f"Pushing {[line.get(key) for key in ["progress", "progressDetails"]]}",
                         end="\r",
                     )
                 elif "status" in line:
@@ -335,7 +333,7 @@ class APIError(Exception):
         self.status = status
 
     def __str__(self):
-        return "APIError: status={}".format(self.status)
+        return f"APIError: status={self.status}"
 
 
 class RetryExhaustedError(Exception):
@@ -539,7 +537,7 @@ def main():  # pylint:disable=R0915
         log.info("Using %s container runtime", runtime)
 
         if not skip_push:
-            useragent = "%s/%s" % (useragent, VERSION)
+            useragent = f"{useragent}/{VERSION}"
             scan_image = ScanImage(
                 client_id, client_secret, repo, tag, client, runtime, cloud
             )
