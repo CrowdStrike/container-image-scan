@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+# !/usr/bin/env python3
 r"""
 MM''''''YMM                     dP            oo
 M' .mmm. `M                     88
@@ -35,23 +35,21 @@ MMMMMMMMMMM
                |     /  | / \_|  |  |_/ |   /\ |  /  | | |/) |/
                 \___/   |/\_/  \/ \/  \/|_//(_)|_/   |/|/| \/|_/
 """
-from __future__ import print_function
 import argparse
 import json
 import logging
 import sys
-from os import environ as env
+import os
 from enum import Enum
 import time
 import getpass
 from falconpy import FalconContainer, ContainerBaseURL
-from retry import retry
-
+from tenacity import retry, wait_fixed, stop_after_attempt, stop_after_delay
 
 logging.basicConfig(stream=sys.stdout, format="%(levelname)-8s%(message)s")
 log = logging.getLogger("cs_scanimage")
 
-VERSION = "2.4.1"
+VERSION = "2.5.0"
 
 
 class ScanImage(Exception):
@@ -59,7 +57,7 @@ class ScanImage(Exception):
 
     # pylint:disable=too-many-instance-attributes
     def __init__(
-        self, client_id, client_secret, repo, tag, client, runtime, cloud
+            self, client_id, client_secret, repo, tag, client, runtime, cloud
     ):  # pylint:disable=too-many-positional-arguments
         self.client_id = client_id
         self.client_secret = client_secret
@@ -71,9 +69,9 @@ class ScanImage(Exception):
         self.auth_config = None
 
     # Step 1: perform container tag to the registry corresponding to the cloud entered
-    def container_tag(self):
-        local_tag = "%s:%s" % (self.repo, self.tag)
-        url_tag = "%s/%s" % (self.server_domain, self.repo)
+    def container_tag(self) -> None:
+        local_tag = f"{self.repo}:{self.tag}"
+        url_tag = f"{self.server_domain}/{self.repo}"
 
         container_image = "".join(
             (
@@ -90,40 +88,29 @@ class ScanImage(Exception):
         self.client.images.get(local_tag).tag(url_tag, self.tag, force=True)
 
     # Step 2: login using the credentials supplied
-    def container_login(self):
+    def container_login(self) -> None:
         log.info("Performing login to CrowdStrike Image Assessment Service")
-        if self.runtime == "docker":
-            try:
-                login = self.client.login(
-                    username=self.client_id,
-                    password=self.client_secret,
-                    registry=self.server_domain,
-                    reauth=True,
-                )
-                log.info(login["Status"])
-            except Exception as e:
-                log.error("Docker login failed: %s", str(e))
-                raise
-        else:  # podman
-            try:
-                auth_config = {
-                    "username": self.client_id,
-                    "password": self.client_secret,
-                }
-                response = self.client.login(registry=self.server_domain, **auth_config)
-                # Store auth config for subsequent operations
+        try:
+            auth_config = {
+                "username": self.client_id,
+                "password": self.client_secret,
+            }
+            login = self.client.login(
+                registry=self.server_domain,
+                reauth=self.runtime == "docker",
+                **auth_config)
+            log.info(login["Status"])
+            if self.runtime == "podman":
                 self.auth_config = auth_config
-                log.info(response["Status"])
-            except Exception as e:
-                log.error("Podman login failed: %s", str(e))
-                raise
+        except Exception as e:
+            log.error("%s login failed: %s", self.runtime.title(), str(e))
+            raise
 
     # Step 3: perform container push using the repo and tag supplied
-    @retry(TimeoutError, tries=5, delay=5)
-    def container_push(self):
-        image_str = "%s/%s:%s" % (self.server_domain, self.repo, self.tag)
+    @retry(wait=wait_fixed(5), stop=(stop_after_attempt(5) | stop_after_delay(600)))
+    def container_push(self) -> None:
+        image_str = f"{self.server_domain}/{self.repo}:{self.tag}"
         log.info("Performing container push to %s", image_str)
-
         try:
             if self.runtime == "docker":
                 image_push = self.client.images.push(
@@ -151,7 +138,7 @@ class ScanImage(Exception):
                         end="\r",
                     )
                 elif "status" in line:
-                    log.info("%s: %s", self.runtime.capitalize(), line["status"])
+                    log.debug("%s: %s", self.runtime.capitalize(), line["status"])
                 else:
                     log.debug(line)
         except Exception as e:
@@ -161,7 +148,7 @@ class ScanImage(Exception):
 
 # Step 4: poll and get scanreport for specified amount of retries
 def get_scanreport(
-    client_id, client_secret, cloud, user_agent, repo, tag, retry_count
+        client_id, client_secret, cloud, user_agent, repo, tag, retry_count
 ):  # pylint:disable=too-many-positional-arguments
     log.info("Downloading Image Scan Report")
     falcon = FalconContainer(
@@ -195,18 +182,14 @@ class ScanReport(dict):
     details_str_key = "Details"
     detect_str_key = "Detections"
 
+    severity_low = "low"
+    severity_medium = "medium"
     severity_high = "high"
+    severity_critical = "critical"
     type_malware = "malware"
     type_secret = "secret"  # nosec
     type_misconfig = "misconfiguration"
     type_cis = "cis"
-
-    def status_code(self):
-        vuln_code = self.get_alerts_vuln()
-        mal_code = self.get_alerts_malware()
-        sec_code = self.get_alerts_secrets()
-        mcfg_code = self.get_alerts_misconfig()
-        return vuln_code | mal_code | sec_code | mcfg_code
 
     def export(self, filename):
         with open(filename, "w", encoding="utf-8") as f:
@@ -215,7 +198,7 @@ class ScanReport(dict):
     # Step 5: pass the vulnerabilities from scan report,
     # loop through and find high severity vulns
     # return HighVulnerability enum value
-    def get_alerts_vuln(self):
+    def get_alerts_vuln(self, severity_threshold: str, severity_mode: str, ignore_unfixed: bool, cve_ignore_list: []):
         log.info("Searching for vulnerabilities in scan report...")
         critical_score = 2000
         high_score = 500
@@ -227,38 +210,61 @@ class ScanReport(dict):
             for vulnerability in vulnerabilities:
                 vuln = vulnerability["Vulnerability"]
                 cve = vuln.get("CVEID", "CVE-unknown")
-                details = vuln.get("Details")
-
-                if isinstance(details, dict):
-                    severity = details.get("severity")
-                    if severity is None:
-                        cvss_v3 = details.get("cvss_v3_score", {})
-                        severity = cvss_v3.get("severity")
-                    if severity is None:
-                        cvss_v2 = details.get("cvss_v2_score", {})
-                        severity = cvss_v2.get("severity", "")
+                ignore_cve_detected = cve.lower() in cve_ignore_list
+                ignore_unfixed_detected = ignore_unfixed and not vuln.get("Remediation", [])
+                ignore_vuln = ignore_cve_detected or ignore_unfixed_detected
+                severity = self.get_severity_score(vuln, severity_mode)
+                if not ignore_vuln:
+                    if severity == self.severity_low and severity_threshold == self.severity_low:
+                        vuln_score += low_score
+                    elif severity == self.severity_medium and severity_threshold in [self.severity_low,
+                                                                                     self.severity_medium]:
+                        vuln_score += medium_score
+                    elif severity == self.severity_high and severity_threshold in [self.severity_low,
+                                                                                   self.severity_medium,
+                                                                                   self.severity_high]:
+                        vuln_score += high_score
+                    elif severity == self.severity_critical:
+                        vuln_score += critical_score
+                    else:
+                        ignore_vuln = True
+                if ignore_vuln:
+                    log.info(
+                        "%-8s %-16s Vulnerability detected but %s",
+                        severity,
+                        cve,
+                        "ignored (in ignore list)" if ignore_cve_detected else "ignored (unfixed)" if ignore_unfixed_detected else "ignored (severity)"
+                    )
                 else:
-                    severity = ""
-
-                product = vuln.get("Product", {})
-                affects = product.get("PackageSource", product)
-                log.warning(
-                    "%-8s %-16s Vulnerability detected affecting %s",
-                    severity,
-                    cve,
-                    affects,
-                )
-                if severity.lower() == "low":
-                    vuln_score = vuln_score + low_score
-                if severity.lower() == "medium":
-                    vuln_score = vuln_score + medium_score
-                if severity.lower() == "high":
-                    vuln_score = vuln_score + high_score
-                if severity.lower() == "critical":
-                    vuln_score = vuln_score + critical_score
+                    details = vuln.get("Details", {})
+                    log.warning(
+                        "%-8s %-16s Vulnerability detected affecting %s\n        %s",
+                        severity,
+                        cve,
+                        vuln.get("Product", {}).get("PackageSource", vuln.get("Product", {})),
+                        details.get("description", "").replace("\n\n", "\n").replace("\n", "\n        "))
         return vuln_score
 
-    # Step 6: pass the detections from scan report,
+    def get_severity_score(self, vuln, severity_mode: str):
+        severity = ""
+        details = vuln.get("Details")
+        if isinstance(details, dict):
+            if severity_mode == "cps":
+                # Use the CPS score to determine severity
+                cps_rating = details.get("cps_rating", {})
+                if cps_rating:
+                    current_rating = cps_rating.get("CurrentRating", {})
+                    severity = current_rating.get("Rating", "")
+            # severity_mode default
+            if not severity:
+                cvss_v3 = details.get("cvss_v3_score", {})
+                severity = cvss_v3.get("severity")
+            if not severity:
+                cvss_v2 = details.get("cvss_v2_score", {})
+                severity = cvss_v2.get("severity", "")
+        return severity.lower() if severity else ""
+
+    # Step 6: pass the detections from scan report
     # loop through and find if detection type is malware
     # return Malware enum value
     def get_alerts_malware(self):
@@ -270,58 +276,73 @@ class ScanReport(dict):
                 try:
                     if detection["Detection"]["Type"].lower() == self.type_malware:
                         log.warning("Alert: Malware found")
-                        det_code = ScanStatusCode.Malware.value
-                        break
+                        return ScanStatusCode.Malware.value
                 except KeyError:
                     continue
-        return det_code
+        return ScanStatusCode.Success.value
 
     # Step 7: pass the detections from scan report,
     # loop through and find if detection type is secret
     # return Success enum value
-    def get_alerts_secrets(self):
+    def get_alerts_secrets(self, ignore_list: []):
         log.info("Searching for leaked secrets in scan report...")
-        det_code = 0
         detections = self[self.detect_str_key]
         if detections is not None:
             for detection in detections:
                 try:
                     if detection["Detection"]["Type"].lower() == self.type_secret:
-                        log.error("Alert: Leaked secrets detected")
-                        det_code = ScanStatusCode.Secrets.value
+                        if not "secrets-ignore-all" in ignore_list:
+                            log.warning("Alert: Leaked secrets detected")
+                            return ScanStatusCode.Secrets.value
+                        else:
+                            log.info(
+                                "Alert: Leaked secrets detected but ignored due to secrets-ignore-all in ignore file")
                         break
                 except KeyError:
                     continue
-        return det_code
+        return ScanStatusCode.Success.value
 
     # Step 8: pass the detections from scan report,
     # loop through and find if detection type is misconfig
     # return Success enum value
-    def get_alerts_misconfig(self):
+    def get_alerts_misconfig(self, ignore_list: []):
         log.info("Searching for misconfigurations in scan report...")
-        det_code = 0
         detections = self[self.detect_str_key]
+        names = []
         if detections is not None:
             for detection in detections:
                 try:
-                    if detection["Detection"]["Type"].lower() in [
+                    det = detection["Detection"]
+                    type_detection = det["Type"].lower()
+                    if type_detection in [
                         self.type_misconfig,
                         self.type_cis,
                     ]:
-                        log.warning("Alert: Misconfiguration found")
-                        det_code = ScanStatusCode.Success.value
-                        break
+                        name = det.get("Name", "")
+                        if name in names:
+                            continue
+                        names.append(name)
+                        key = f"{type_detection}-{name}"
+                        if key.lower() in ignore_list:
+                            log.info("Ignoring %s whitelisted on the ignore file", key)
+                            continue
+                        severity = det.get("Severity", "")
+                        description = (det.get("Title", "") + "\n        " + det.get("Description", "")
+                                       .replace("\n", "\n        "))
+                        log.warning("Misconfiguration %s '%s'\n        %s", severity, key, description)
+                        return ScanStatusCode.Misconfig.value
                 except KeyError:
                     continue
-        return det_code
+        return ScanStatusCode.Success.value
 
 
 # these statues are returned and bitwise or'ed
 class ScanStatusCode(Enum):
+    Success = 0
     Vulnerability = 1
     Malware = 2
     Secrets = 3
-    Success = 0
+    Misconfig = 4
     ScriptFailure = 10
 
 
@@ -335,7 +356,7 @@ class APIError(Exception):
         self.status = status
 
     def __str__(self):
-        return "APIError: status={}".format(self.status)
+        return f"APIError: status={self.status}"
 
 
 class RetryExhaustedError(Exception):
@@ -346,8 +367,8 @@ class RetryExhaustedError(Exception):
 # See https://stackoverflow.com/questions/10551117/setting-options-from-environment-variables-when-using-argparse/10551190#10551190
 class EnvDefault(argparse.Action):
     def __init__(self, envvar, required=True, default=None, **kwargs):
-        if envvar in env:
-            default = env[envvar]
+        if envvar in os.environ:
+            default = os.environ[envvar]
         if required and default:
             required = False
         super(EnvDefault, self).__init__(default=default, required=required, **kwargs)
@@ -359,7 +380,7 @@ class EnvDefault(argparse.Action):
 # End code authored by Russell Heilling
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     required = parser.add_argument_group("required arguments")
     required.add_argument(
@@ -401,10 +422,44 @@ def parse_args():
         "-s",
         "--score_threshold",
         action=EnvDefault,
-        dest="score",
+        dest="score_threshold",
         default="500",
         envvar="SCORE",
-        help="Vulnerability score threshold",
+        help="Vulnerability score threshold (default 500)",
+    )
+    required.add_argument(
+        "-st",
+        "--severity_threshold",
+        action=EnvDefault,
+        dest="severity_threshold",
+        default="low",
+        envvar="SEVERITY_THRESHOLD",
+        help="Vulnerability severity threshold (default low)",
+    )
+    required.add_argument(
+        "-sm",
+        "--severity_mode",
+        action=EnvDefault,
+        dest="severity_mode",
+        default="default",
+        envvar="SEVERITY_MODE",
+        help="Vulnerability severity compute mode (default cps)"
+    )
+    required.add_argument(
+        "--ignore-unfixed",
+        action="store_true",
+        dest="ignore_unfixed",
+        default=False,
+        help="Ignore unfixed vulnerabilities",
+    )
+    required.add_argument(
+        "--cve-ignore-file",
+        action=EnvDefault,
+        dest="ignore_file",
+        envvar="IGNORE_FILE",
+        default=None,
+        required=False,
+        help="Path of the file containing CVEs to ignore",
     )
     parser.add_argument(
         "--json-report",
@@ -453,16 +508,34 @@ def parse_args():
     parser.add_argument(
         "--skip-push", default=False, action="store_true", help="Skip image push"
     )
-
     args = parser.parse_args()
     logging.getLogger().setLevel(args.log_level)
-
+    if args.severity_threshold.lower() not in [
+        "low",
+        "medium",
+        "high",
+        "critical",
+    ]:
+        raise ValueError(
+            "Invalid severity threshold. Must be one of: low, medium, high, critical"
+        )
+    if args.severity_mode.lower() not in [
+        "default",
+        "cps",
+    ]:
+        raise ValueError(
+            "Invalid severity mode. Must be one of: [default, cps]"
+        )
     return (
         args.client_id,
         args.repo,
         args.tag,
         args.cloud,
-        args.score,
+        int(args.score_threshold),
+        args.severity_threshold.lower(),
+        args.severity_mode.lower(),
+        args.ignore_unfixed,
+        args.ignore_file,
         args.report,
         args.retry_count,
         args.plugin,
@@ -473,73 +546,81 @@ def parse_args():
 
 def detect_container_runtime():
     """Detect whether Docker or Podman is available and return the appropriate client"""
+    docker_available = True
+    podman_available = True
     try:
-        import docker  # pylint:disable=C0415
+        import docker
+    except ImportError:
+        docker_available = False
+    try:
+        import podman
+    except ImportError:
+        podman_available = False
 
+    # Fail early if neither library is available
+    if not docker_available and not podman_available:
+        raise RuntimeError("Neither Docker nor Podman libraries are available")
+    # Try Docker first if available
+    if docker_available:
         try:
             client = docker.from_env()
             client.ping()
             return client, "docker"
-        except (docker.errors.APIError, docker.errors.DockerException):
-            import podman  # pylint:disable=C0415
+        except (docker.errors.APIError, docker.errors.DockerException) as exc:
+            if not podman_available:
+                raise RuntimeError("Could not connect to Docker.") from exc
 
-            client = podman.from_env()
-            try:
-                client.ping()
-            except (ConnectionRefusedError, podman.errors.exceptions.APIError) as exc:
-                raise RuntimeError(
-                    "Could not connect to Podman socket. "
-                    "If running rootless, ensure your podman.socket is running (systemctl --user start podman.socket). "
-                    "If running as root, ensure the CONTAINER_HOST environment variable is set correctly "
-                    "(e.g. unix:///var/run/podman/podman.sock)."
-                ) from exc
-            return client, "podman"
-    except ImportError:
+    # Try Podman if available
+    if podman_available:
         try:
-            import podman  # pylint:disable=C0415
-
             client = podman.from_env()
-            try:
-                client.ping()
-            except (ConnectionRefusedError, podman.errors.exceptions.APIError) as exc:
-                raise RuntimeError(
-                    "Could not connect to Podman socket. "
-                    "If running rootless, ensure your podman.socket is running (systemctl --user start podman.socket). "
-                    "If running as root, ensure the CONTAINER_HOST environment variable is set correctly "
-                    "(e.g. unix:///var/run/podman/podman.sock)."
-                ) from exc
+            client.ping()
             return client, "podman"
-        except ImportError as exc:
+        except (ConnectionRefusedError, podman.errors.exceptions.APIError) as exc:
             raise RuntimeError(
-                "Neither Docker nor Podman client libraries are available"
+                "Could not connect to Docker or Podman socket.\n"
+                "About podman: "
+                "If running rootless, ensure your podman.socket is running (systemctl --user start podman.socket). "
+                "If running as root, ensure the CONTAINER_HOST environment variable is set correctly "
+                "(e.g. unix:///var/run/podman/podman.sock)."
             ) from exc
 
+    # If we reach here, something unexpected happened
+    raise RuntimeError("Could not connect to Docker or Podman socket.")
 
-def main():  # pylint:disable=R0915
 
+def main() -> None:
     try:
         (
             client_id,
             repo,
             tag,
             cloud,
-            score,
+            score_threshold,
+            severity_threshold,
+            severity_mode,
+            ignore_unfixed,
+            ignore_file,
             json_report,
             retry_count,
             plugin,
             useragent,
             skip_push,
         ) = parse_args()
-        client_secret = env.get("FALCON_CLIENT_SECRET")
-        if client_secret is None:
-            print("Please enter your Falcon OAuth2 API Secret")
-            client_secret = getpass.getpass()
-
+        client_secret = os.environ.get("FALCON_CLIENT_SECRET") or getpass.getpass("Enter Falcon OAuth2 API Secret: ")
         client, runtime = detect_container_runtime()
         log.info("Using %s container runtime", runtime)
-
+        ignore_list = []
+        if ignore_file and os.path.exists(ignore_file):
+            log.debug("Cve ignore file found %s", ignore_file)
+            with open(ignore_file, "r", encoding="utf-8") as f:
+                ignore_list = [
+                    line.strip().lower() for line in f if line.strip() and not line.lstrip().startswith("#")
+                ]
+        elif ignore_file:
+            log.warning("Cve ignore file not found %s", ignore_file)
         if not skip_push:
-            useragent = "%s/%s" % (useragent, VERSION)
+            useragent = f"{useragent}/{VERSION}"
             scan_image = ScanImage(
                 client_id, client_secret, repo, tag, client, runtime, cloud
             )
@@ -557,31 +638,37 @@ def main():  # pylint:disable=R0915
 
         if json_report:
             scan_report.export(json_report)
-        f_vuln_score = int(scan_report.get_alerts_vuln())
-        f_secrets = int(scan_report.get_alerts_secrets())
-        f_malware = int(scan_report.get_alerts_malware())
-        scan_report.get_alerts_misconfig()
 
-        if f_secrets == ScanStatusCode.Secrets.value:
-            log.error("Exiting: Secrets found in container image")
-            sys.exit(ScanStatusCode.Secrets.value)
-        if f_malware == ScanStatusCode.Malware.value:
-            log.error("Exiting: Malware found in container image")
-            sys.exit(ScanStatusCode.Malware.value)
-        if f_vuln_score >= int(score):
+        f_vuln_score = int(scan_report.get_alerts_vuln(severity_threshold, severity_mode, ignore_unfixed, ignore_list))
+        f_secrets = int(scan_report.get_alerts_secrets(ignore_list))
+        f_malware = int(scan_report.get_alerts_malware())
+        f_misconfig = scan_report.get_alerts_misconfig(ignore_list)
+
+        if f_vuln_score >= score_threshold:
             log.error(
-                "Exiting: Vulnerability score threshold exceeded: '%s' out of '%s'",
+                "Exiting %s: Vulnerability score threshold exceeded: '%s' out of '%s'",
+                ScanStatusCode.Vulnerability.value,
                 f_vuln_score,
-                score,
+                score_threshold,
             )
             sys.exit(ScanStatusCode.Vulnerability.value)
-        else:
+        elif f_vuln_score > 0:
             log.info(
                 "Vulnerability score threshold not met: '%s' out of '%s'",
                 f_vuln_score,
-                score,
+                score_threshold,
             )
-            sys.exit(ScanStatusCode.Success.value)
+        if f_malware == ScanStatusCode.Malware.value:
+            log.error("Exiting %s: Malware found in container image", f_malware)
+            sys.exit(ScanStatusCode.Malware.value)
+        if f_secrets == ScanStatusCode.Secrets.value:
+            log.error("Exiting %s: Secrets found in container image", f_secrets)
+            sys.exit(ScanStatusCode.Secrets.value)
+        if f_misconfig == ScanStatusCode.Misconfig.value:
+            log.error("Exiting %s: Misconfig found in container image", f_misconfig)
+            sys.exit(ScanStatusCode.Misconfig.value)
+
+        sys.exit(ScanStatusCode.Success.value)
 
     except APIError:
         log.exception("Unable to scan")

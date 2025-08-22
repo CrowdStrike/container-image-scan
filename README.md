@@ -82,9 +82,12 @@ pip3 install -r requirements.txt
 $ python3 cs_scanimage.py --help
 usage: cs_scanimage.py [-h] -u CLIENT_ID -r REPO [-t TAG]
                        [-c {us-1,us-2,eu-1,us-gov-1}] [-s SCORE]
+                       [-st {low,medium,high,critical}] [-sm {default,cps}]
+                       [--ignore-unfixed ] [--cve-ignore-file FILE]
                        [--json-report REPORT]
                        [--log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}]
                        [-R RETRY_COUNT] [--plugin] [--user-agent USERAGENT]
+                       [--skip-push]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -94,6 +97,7 @@ optional arguments:
   --plugin              Prints the report as json to stdout
   --user-agent USERAGENT
                         HTTP User agent to use for API calls
+  --skip-push           Skip image push
 
 required arguments:
   -u CLIENT_ID, --clientid CLIENT_ID
@@ -104,6 +108,14 @@ required arguments:
                         CrowdStrike cloud region
   -s SCORE, --score_threshold SCORE
                         Vulnerability score threshold
+  -st {low,medium,high,critical}, --severity_threshold {low,medium,high,critical}
+                        Vulnerability severity threshold (default: low)
+  -sm {default,cps}, --severity_mode {default,cps}
+                        Vulnerability severity compute mode (default: default)
+  --ignore-unfixed
+                        Ignore unfixed vulnerabilities
+  --cve-ignore-file FILE
+                        Path of the file containing CVEs to ignore
   -R RETRY_COUNT, --retry_count RETRY_COUNT
                         Scan report retry count
 ```
@@ -114,6 +126,76 @@ required arguments:
 > `FALCON_CLIENT_ID`, `FALCON_CLIENT_SECRET`, and `FALCON_CLOUD_REGION`.
 >
 > Establishing and retrieving API credentials can be performed at <https://falcon.crowdstrike.com/support/api-clients-and-keys>.
+
+## Advanced Configuration
+
+The script provides several options to fine-tune vulnerability filtering:
+
+### Severity Thresholds
+
+Filter vulnerabilities based on severity level:
+
+```shell
+python cs_scanimage.py --clientid FALCON_CLIENT_ID --repo <repo> --tag <tag> \
+    --severity_threshold high
+```
+
+Valid severity thresholds: `low`, `medium`, `high`, `critical` (default: `low`)
+
+### Severity Mode
+
+Choose how severity is determined:
+
+```shell
+python cs_scanimage.py --clientid FALCON_CLIENT_ID --repo <repo> --tag <tag> \
+    --severity_mode cps
+```
+
+Valid severity modes: `default` (cvss v3 score), `cps` (CrowdStrike Priority Score)
+
+### Ignoring Unfixed Vulnerabilities
+
+Filter out vulnerabilities that don't have fixes available:
+
+```shell
+python cs_scanimage.py --clientid FALCON_CLIENT_ID --repo <repo> --tag <tag> \
+    --ignore-unfixed
+```
+
+### CVE Ignore List
+
+Specify a file containing CVEs to ignore:
+
+```shell
+python cs_scanimage.py --clientid FALCON_CLIENT_ID --repo <repo> --tag <tag> \
+    --cve-ignore-file /path/to/ignore-list.txt
+```
+
+Sample ignore file content:
+```
+# No fix is available for these CVE
+CVE-2024-2961
+CVE-2024-2962
+
+# Unable to fix missconfigurations on base image
+cis-SetUIDBitFoundInImage
+
+# False positive secrets, ignore all
+secrets-ignore-all
+```
+
+The ignore file should contain one CVE ID per line. Lines starting with # are treated as comments.
+
+### Skip Image Push
+
+For workflows where the image has already been pushed:
+
+```shell
+python cs_scanimage.py --clientid FALCON_CLIENT_ID --repo <repo> --tag <tag> \
+    --skip-push
+```
+
+This is useful in CI/CD pipelines where the image push step is handled separately.
 
 ## Example Scans
 
@@ -159,24 +241,6 @@ python cs_scanimage.py --clientid FALCON_CLIENT_ID --repo <repo> --tag <tag> \
 
 ```
 
-The `echo $?` command can be utilized to review the return code, e.g:
-
-```shell
-echo $?
-1
-```
-
-The `echo $?` above displays the returned code with the following mappings:
-
-```shell
-VulnerabilityScoreExceeded = 1
-Malware = 2
-Secrets = 3
-Success = 0
-Misconfig = 0
-ScriptFailure = 10
-```
-
 ## Running the Scan using CICD
 
 - You can use the [container-image-scan](https://github.com/marketplace/actions/crowdstrike-container-image-scan) GitHub Action in your GitHub workflows. Checkout the action at [https://github.com/marketplace/actions/crowdstrike-container-image-scan](https://github.com/marketplace/actions/crowdstrike-container-image-scan)
@@ -200,4 +264,35 @@ You can use any argument that is supported by the script. For example, to set th
 docker run -it --rm -e FALCON_CLIENT_ID -e FALCON_CLIENT_SECRET \
     -v /var/run/docker.sock:/var/run/docker.sock \
     quay.io/crowdstrike/container-image-scan:latest --repo <repo> --tag <tag> -c us-2
+```
+You can mount an ignore file to the container to ignore specific CVEs:
+
+```shell
+docker run -it --rm -e FALCON_CLIENT_ID -e FALCON_CLIENT_SECRET \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    -v ./.ignore-cve:/ignore  \
+    quay.io/crowdstrike/container-image-scan:latest --repo <repo> --tag <tag> --cve-ignore-file /ignore
+
+```
+
+## Exit Codes and Failure Reasons
+
+The script exits with specific codes to indicate the result of the scan. These codes can be used in CI/CD pipelines to determine the cause of a failure:
+
+| Exit Code | Reason                                      | Description                                                                 |
+|-----------|---------------------------------------------|-----------------------------------------------------------------------------|
+| 0         | Success                                     | No critical issues found; scan passed.                                       |
+| 1         | VulnerabilityScoreExceeded                  | The vulnerability score threshold was exceeded.                              |
+| 2         | Malware                                     | Malware was detected in the container image.                                 |
+| 3         | Secrets                                     | Leaked secrets were detected in the container image.                         |
+| 4         | Misconfig                                   | Misconfigurations or CIS issues were found (treated as non-blocking by default). |
+| 10        | ScriptFailure                               | A script or API error occurred, or scan report retries were exhausted.        |
+
+You can use these exit codes in your CI/CD pipeline to take appropriate actions based on the scan results.
+
+The `echo $?` command can be utilized to review the return code, e.g:
+
+```shell
+echo $?
+1
 ```
